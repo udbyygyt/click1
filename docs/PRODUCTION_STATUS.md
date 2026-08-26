@@ -28,6 +28,7 @@ https://click1.nfthubcity.xyz
 - ACME HTTP-01 testing：204
 - Mailu front：healthy
 - Click+1 PostgreSQL：healthy
+- 当前 API 已包含离线点击队列：断网可继续点击，恢复网络后自动顺序同步；撤回始终要求联网。
 
 ## 支付验证
 
