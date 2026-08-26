@@ -29,7 +29,7 @@ export const gameApi = {
   logout: (token: string) => api<{ loggedOut: boolean }>('/api/auth/logout', token, { method: 'POST' }),
   deleteAccount: (token: string) => api<{ deleted: boolean }>('/api/account', token, { method: 'DELETE' }),
   start: (token: string, replace = false) => api<CurrentGame>('/api/games/current', token, { method: 'POST', body: JSON.stringify({ replace }) }),
-  move: (token: string, row: number, col: number) => api<{ state: GameState; events: GameEvent[] }>('/api/games/current/moves', token, { method: 'POST', body: JSON.stringify({ row, col }) }),
+  move: (token: string, row: number, col: number, clientMoveId?: string) => api<{ state: GameState; events: GameEvent[]; moveId: string }>('/api/games/current/moves', token, { method: 'POST', body: JSON.stringify({ row, col, clientMoveId: clientMoveId ?? crypto.randomUUID() }) }),
   undoStatus: (token: string) => api<{ utcDate: string; available: boolean }>('/api/account/daily-undo', token),
   freeUndo: (token: string) => api<GameState>('/api/games/current/undo/free', token, { method: 'POST' }),
   paidUndoQuote: (token: string) => api<PaidUndoOrder>('/api/games/current/undo/paid/quote', token, { method: 'POST' }),

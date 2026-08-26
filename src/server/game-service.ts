@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
-import { applyMove, createInitialState, undoMove, type GameState, type MoveResult, type MoveSnapshot } from '../game-engine/index.js';
+import { applyMove, createInitialState, undoMove, type GameEvent, type GameState, type MoveResult, type MoveSnapshot } from '../game-engine/index.js';
 import type { PaidUndoOrder } from './payment-types.js';
 
 export interface CurrentGame {
@@ -10,7 +10,7 @@ export interface CurrentGame {
 }
 
 interface MemoryGame extends CurrentGame {
-  moves: Array<{ id: string; snapshot: MoveSnapshot; row: number; col: number }>;
+  moves: Array<{ id: string; snapshot: MoveSnapshot; row: number; col: number; events: GameEvent[]; resultState: GameState }>;
 }
 
 interface MemoryOrder extends PaidUndoOrder {}
@@ -85,14 +85,17 @@ export class GameService {
     return row ? { id: row.id, walletAddress, state: row.state } : null;
   }
 
-  public async applyCurrentMove(walletAddress: string, row: number, col: number): Promise<MoveResult & { moveId: string }> {
+  public async applyCurrentMove(walletAddress: string, row: number, col: number, clientMoveId?: string): Promise<MoveResult & { moveId: string }> {
+    const operationId = clientMoveId ?? randomUUID();
     if (!this.pool) {
       const current = this.memoryGames.get(walletAddress);
       if (!current) throw new Error('current game not found');
-      const moveId = randomUUID();
+      const moveId = operationId;
+      const existing = current.moves.find((move) => move.id === moveId);
+      if (existing) return { state: { ...existing.resultState, board: existing.resultState.board.map((line) => line.slice()) }, snapshot: { ...existing.snapshot, board: existing.snapshot.board.map((line) => line.slice()) }, events: existing.events, moveId };
       const result = applyMove(current.state, row, col, moveId);
       current.state = result.state;
-      current.moves.push({ id: moveId, snapshot: result.snapshot, row, col });
+      current.moves.push({ id: moveId, snapshot: result.snapshot, row, col, events: result.events, resultState: result.state });
       return { ...result, moveId };
     }
 
@@ -100,7 +103,16 @@ export class GameService {
     try {
       await client.query('BEGIN');
       const game = await this.lockCurrentGame(client, walletAddress);
-      const moveId = randomUUID();
+      const existingResult = await client.query<{ id: string; snapshot: MoveSnapshot; result_state: GameState; events: GameEvent[] }>(
+        'SELECT id, snapshot, result_state, events FROM game_moves WHERE game_id = $1 AND client_move_id = $2',
+        [game.id, operationId],
+      );
+      if (existingResult.rows[0]) {
+        await client.query('COMMIT');
+        const existing = existingResult.rows[0];
+        return { state: existing.result_state, snapshot: existing.snapshot, events: existing.events, moveId: existing.id };
+      }
+      const moveId = operationId;
       const result = applyMove(game.state, row, col, moveId);
       const moveNumberResult = await client.query<{ next_number: number }>(
         'SELECT COALESCE(MAX(move_number), 0) + 1 AS next_number FROM game_moves WHERE game_id = $1',
@@ -108,8 +120,8 @@ export class GameService {
       );
       const moveNumber = Number(moveNumberResult.rows[0]?.next_number ?? 1);
       await client.query(
-        'INSERT INTO game_moves (id, game_id, move_number, row_index, col_index, snapshot, result_state) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)',
-        [moveId, game.id, moveNumber, row, col, JSON.stringify(result.snapshot), JSON.stringify(result.state)],
+        'INSERT INTO game_moves (id, game_id, move_number, row_index, col_index, client_move_id, snapshot, result_state, events) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb)',
+        [moveId, game.id, moveNumber, row, col, operationId, JSON.stringify(result.snapshot), JSON.stringify(result.state), JSON.stringify(result.events)],
       );
       await client.query(
         'UPDATE games SET state = $1::jsonb, status = $2, updated_at = now() WHERE id = $3',

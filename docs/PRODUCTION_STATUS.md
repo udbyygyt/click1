@@ -29,6 +29,7 @@ https://click1.nfthubcity.xyz
 - Mailu front：healthy
 - Click+1 PostgreSQL：healthy
 - 当前 API 已包含离线点击队列：断网可继续点击，恢复网络后自动顺序同步；撤回始终要求联网。
+- 点击请求带有客户端操作 ID，网络重试不会重复加分、生成方块或消耗行动力。
 
 ## 支付验证
 

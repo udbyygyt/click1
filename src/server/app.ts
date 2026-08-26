@@ -191,12 +191,13 @@ export async function buildApp(): Promise<FastifyInstance> {
   app.post('/api/games/current/moves', async (request, reply) => {
     const walletAddress = await authenticate(request);
     if (!walletAddress) return reply.code(401).send({ error: 'authentication required' });
-    const body = request.body as { row?: unknown; col?: unknown } | undefined;
+    const body = request.body as { row?: unknown; col?: unknown; clientMoveId?: unknown } | undefined;
     const row = body?.row;
     const col = body?.col;
+    const clientMoveId = typeof body?.clientMoveId === 'string' && body.clientMoveId.length <= 100 ? body.clientMoveId : undefined;
     if (!Number.isInteger(row) || !Number.isInteger(col)) return reply.code(400).send({ error: 'row and col are required' });
     try {
-      return await gameService.applyCurrentMove(walletAddress, row as number, col as number);
+      return await gameService.applyCurrentMove(walletAddress, row as number, col as number, clientMoveId);
     } catch (error) {
       return reply.code(400).send({ error: error instanceof Error ? error.message : 'invalid move' });
     }

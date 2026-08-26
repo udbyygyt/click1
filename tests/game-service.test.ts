@@ -54,4 +54,19 @@ describe('GameService', () => {
     expect(duplicate).toEqual(confirmed);
     await expect(service.confirmPaidUndo('wallet-1', order.id, 'other-signature')).rejects.toThrow('transaction signature does not match order');
   });
+
+  it('is idempotent when the same client move is retried', async () => {
+    const service = new GameService();
+    const game = await service.startCurrentGame('wallet-1', true);
+    const tile = game.state.board
+      .map((row, rowIndex) => row.map((value, colIndex) => ({ value, rowIndex, colIndex })))
+      .flat()
+      .find((cell) => cell.value > 0)!;
+    const first = await service.applyCurrentMove('wallet-1', tile.rowIndex, tile.colIndex, 'client-move-1');
+    const retry = await service.applyCurrentMove('wallet-1', tile.rowIndex, tile.colIndex, 'client-move-1');
+
+    expect(retry.moveId).toBe(first.moveId);
+    expect(retry.state).toEqual(first.state);
+    expect(retry.events).toEqual(first.events);
+  });
 });

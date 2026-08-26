@@ -56,10 +56,10 @@ Authorization: Bearer <token>
 ### `POST /api/games/current/moves`
 
 ```json
-{ "row": 0, "col": 0 }
+{ "row": 0, "col": 0, "clientMoveId": "uuid" }
 ```
 
-服务端使用共享引擎执行点击、合并、下落、生成、计分和行动力变化，并原子保存操作快照。
+服务端使用共享引擎执行点击、合并、下落、生成、计分和行动力变化，并原子保存操作快照。`clientMoveId` 用于网络重试幂等；同一个游戏中的同一 ID 只会执行一次。
 
 ## Undo
 

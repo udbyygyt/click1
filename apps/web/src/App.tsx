@@ -42,7 +42,7 @@ function GameApp() {
       let latest = state;
       try {
         for (const [index, move] of offlineQueue.entries()) {
-          const result = await gameApi.move(token, move.row, move.col);
+          const result = await gameApi.move(token, move.row, move.col, move.id);
           if (cancelled) return;
           latest = result.state;
           setEvents(result.events);
@@ -68,7 +68,7 @@ function GameApp() {
   const move = async (row: number, col: number) => {
     if (!token || !state) return;
     if (!online) {
-      try { const result = applyOfflineMove(state, { row, col }, `offline-${offlineQueue.length + 1}`); setState(result.state); setEvents(result.events); setOfflineQueue((queue) => [...queue, { row, col }]); playSound('click', soundEnabled); vibrate(vibrationEnabled); setStatus('Offline move saved. Undo requires a connection.'); } catch (error) { setStatus(error instanceof Error ? error.message : copy.error); }
+      try { const id = crypto.randomUUID(); const result = applyOfflineMove(state, { row, col }, id); setState(result.state); setEvents(result.events); setOfflineQueue((queue) => [...queue, { id, row, col }]); playSound('click', soundEnabled); vibrate(vibrationEnabled); setStatus('Offline move saved. Undo requires a connection.'); } catch (error) { setStatus(error instanceof Error ? error.message : copy.error); }
       return;
     }
     setBusy(true);
