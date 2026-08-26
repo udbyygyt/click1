@@ -53,6 +53,8 @@ select { min-height: 44px; padding: 0 30px 0 12px; color: #f4f7ff; background: #
 .preferences label { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; }
 .disconnect { margin-left: auto; }
 .action-danger { color: #ffd8dd; background: transparent; border: 1px solid #8d4e60; border-radius: 11px; padding: 10px 14px; }
+.network-banner { margin-bottom: 10px; color: #aeb9d8; font-size: 12px; }
+.network-banner.offline { color: #f6c453; }
 @keyframes tile-pop { 50% { transform: scale(1.14); filter: brightness(1.18); } }
 @keyframes tile-drop { from { transform: translateY(-18px) scale(.86); opacity: .2; } 70% { transform: translateY(3px) scale(1.04); } to { transform: translateY(0) scale(1); opacity: 1; } }
 @keyframes tile-merge { 40% { transform: scale(1.24); filter: brightness(1.3); } 100% { transform: scale(1); } }
