@@ -18,6 +18,7 @@ Solana Seeker 上的数字合成益智游戏。
 - Caddy + Fastify 静态资源服务和腾讯云 Docker Compose 生产入口。
 - Cookie 会话、钱包登出、玩法说明、通关/结束状态和多语言法律页面。
 - dApp Store TWA/APK 构建说明：`docs/APK.md`。
+- 当前生产部署记录：`docs/PRODUCTION_STATUS.md`。
 
 ## 本地开发
 
