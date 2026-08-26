@@ -54,7 +54,8 @@ export async function buildApp(): Promise<FastifyInstance> {
     await access(webRoot);
     await app.register(fastifyStatic, { root: webRoot, prefix: '/' });
     app.setNotFoundHandler((request, reply) => {
-      if (request.raw.url?.startsWith('/api/') || request.raw.url === '/health' || request.raw.url === '/health/db') {
+      const pathname = (request.raw.url ?? '').split('?')[0] ?? '';
+      if (pathname.startsWith('/api/') || pathname === '/health' || pathname === '/health/db' || !['/', '/privacy', '/terms', '/support'].includes(pathname)) {
         return reply.code(404).send({ error: 'not found' });
       }
       return reply.sendFile('index.html');

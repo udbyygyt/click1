@@ -22,6 +22,10 @@ describe('API foundation', () => {
     expect(health.headers['x-content-type-options']).toBe('nosniff');
     expect(health.headers['x-frame-options']).toBe('SAMEORIGIN');
     expect(health.headers['content-security-policy']).toEqual(expect.stringContaining("default-src 'self'"));
+    const hiddenPath = await app.inject({ method: 'GET', url: '/.env' });
+    expect(hiddenPath.statusCode).toBe(404);
+    const unknownPath = await app.inject({ method: 'GET', url: '/not-a-page' });
+    expect(unknownPath.statusCode).toBe(404);
     expect(config.statusCode).toBe(200);
     expect(config.json()).toMatchObject({ cluster: 'devnet', undoPriceLamports: 10000000 });
   });
