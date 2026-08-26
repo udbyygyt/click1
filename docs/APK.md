@@ -20,7 +20,7 @@ bubblewrap init --manifest="https://click1.nfthubcity.xyz/manifest.webmanifest" 
 
 - Host：`click1.nfthubcity.xyz`
 - Start URL：`/`
-- Package ID：`xyz.nfthubcity.click1`
+- Package ID：`xyz.nfthubcity.click1.twa`
 - Name：`Click+1`
 - Launcher name：`Click+1`
 - Orientation：`portrait`

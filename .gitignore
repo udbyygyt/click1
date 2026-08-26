@@ -1,5 +1,10 @@
 node_modules/
 dist/
+.gradle/
+android/twa/app/build/
+android/twa/build/
+android/twa/*.apk
+android/twa/*.aab
 .env
 .env.*
 !.env.example
