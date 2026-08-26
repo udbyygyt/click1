@@ -12,10 +12,10 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 
 docker compose config --quiet
-docker compose pull postgres caddy
-docker compose build --pull api
-docker compose up -d postgres
-docker compose up -d api caddy
+docker compose --profile standalone pull postgres caddy
+docker compose --profile standalone build --pull api
+docker compose --profile standalone up -d postgres
+docker compose --profile standalone up -d api caddy
 docker compose ps
 
 echo "Deployment started. Check the configured production domain at /health and /health/db after the API becomes healthy."

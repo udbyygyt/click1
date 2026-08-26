@@ -1,0 +1,12 @@
+services:
+  api:
+    networks:
+      default: {}
+      mailu_default:
+        aliases:
+          - click1-api
+
+networks:
+  mailu_default:
+    external: true
+    name: mailu_default

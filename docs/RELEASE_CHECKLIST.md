@@ -24,6 +24,8 @@
 - [ ] `.env` 权限仅允许部署用户读取，未提交到仓库。
 - [ ] `.dockerignore` 已排除 `.env`、钱包/签名密钥、`node_modules` 和本地构建产物。
 - [ ] Caddy 已成功申请 HTTPS 证书。
+- [ ] 若使用现有 Mailu：`HOSTNAMES` 包含 `mail.nfthubcity.xyz,click1.nfthubcity.xyz`，且 click1 证书 SAN 已验证。
+- [ ] 若使用现有 Mailu：先完成 `./scripts/deploy-mailu.sh` dry run，再明确确认后使用 `--apply`。
 - [ ] `/health` 和 `/health/db` 返回 200。
 - [ ] `pg_dump` 每日备份到异地存储，并完成恢复演练。
 

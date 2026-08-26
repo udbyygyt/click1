@@ -14,7 +14,7 @@ Seeker TWA/PWA
       └── Solana mainnet-beta RPC Provider
 ```
 
-你已有腾讯云新加坡轻量服务器，因此首版不需要 Render、Neon 或 Supabase，也不需要单独 Redis。当前局唯一性、每日免费撤回、支付订单幂等和账户删除都可以通过 PostgreSQL 事务、唯一索引和行锁完成。
+你已有腾讯云新加坡轻量服务器，因此首版不需要 Render、Neon 或 Supabase，也不需要单独 Redis。当前服务器已有 Mailu 前端，生产应使用 `docker-compose.mailu.yml` 和 `scripts/deploy-mailu.sh`；默认 Caddy 仅用于没有其他 80/443 服务的独立服务器模式。当前局唯一性、每日免费撤回、支付订单幂等和账户删除都可以通过 PostgreSQL 事务、唯一索引和行锁完成。
 
 ## 2. 环境
 
@@ -80,6 +80,18 @@ POSTGRES_PASSWORD=use-a-long-random-password
 7. 每日执行 `pg_dump`，加密后上传腾讯云 COS 或其他异地存储，并定期做恢复演练。
 8. 使用 Docker/系统日志排查错误，配置日志轮转，不记录私钥、助记词或完整 SIWS 消息。
 9. 每周检查磁盘、内存、数据库容量、RPC 错误率、支付异常和应用审核反馈。
+
+### Mailu 已占用 80/443 时
+
+当前腾讯云服务器的 80/443 由 Mailu `mailu-front-1` 占用，不能启动默认 Caddy。使用 Mailu 接入配置：
+
+1. 在 `/mailu/mailu.env` 的 `HOSTNAMES` 中追加 `click1.nfthubcity.xyz`，保留现有 `mail.nfthubcity.xyz`。
+2. 让 Mailu front 的 `letsencrypt.py` 自动为两个主机名申请/续期证书。
+3. 在 `/root/click1/.env` 配置生产 API、数据库、主网 RPC 和收款地址。
+4. 先执行 `./scripts/deploy-mailu.sh` 做备份、Compose 校验和 `nginx -t`，不重启服务。
+5. 确认输出无误后，再执行 `./scripts/deploy-mailu.sh --apply`；它只启动 Click+1 的 `postgres/api`，并重启 Mailu `front`，不重启整套邮件服务。
+
+Mailu 接入使用 `docker-compose.mailu.yml` 将 API 加入现有 `mailu_default` 网络，并通过 `deploy/mailu/click1.conf` 按 Host 路由。回滚时恢复脚本生成的 override 备份、撤回 `HOSTNAMES` 中的 click1，再执行 Mailu front 更新。
 
 ### 一键部署脚本
 

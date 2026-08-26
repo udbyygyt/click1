@@ -15,6 +15,7 @@ services:
 
   caddy:
     image: caddy:2-alpine
+    profiles: ["standalone"]
     environment:
       CLICK1_DOMAIN: ${CLICK1_DOMAIN:-localhost}
     depends_on:

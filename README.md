@@ -39,10 +39,10 @@ Vite 开发服务器会将 `/api/*` 和 `/health` 代理到 Fastify 3000 端口�
 复制 `.env.example` 为 `.env`，设置开发环境变量后运行：
 
 ```bash
-docker compose up -d --build
+docker compose --profile standalone up -d --build
 ```
 
-腾讯云生产部署可使用 `scripts/deploy-production.sh`；执行前必须完成生产 `.env`，不要把它提交到仓库。
+独立服务器生产部署可使用 `scripts/deploy-production.sh`；本项目当前腾讯云服务器已有 Mailu 占用 80/443，应使用 `scripts/deploy-mailu.sh`。执行前必须完成生产 `.env`，不要把它提交到仓库。
 
 生产环境使用 `mainnet-beta`，开发环境使用 `devnet`。不要把 `.env`、钱包私钥、助记词或生产密钥提交到代码仓库。
 
