@@ -6,7 +6,8 @@ export interface Session { walletAddress: string; token: string }
 export interface PaidUndoOrder { id: string; walletAddress: string; gameId: string; moveId: string; amountLamports: number; recipient: string; network: 'mainnet-beta'; memo: string; transactionSignature: string | null; status: string }
 
 async function api<T>(path: string, token: string, options: RequestInit = {}): Promise<T> {
-  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  const headers: Record<string, string> = {};
+  if (options.body !== undefined) headers['content-type'] = 'application/json';
   if (token && token !== 'cookie') headers.authorization = `Bearer ${token}`;
   const response = await fetch(path, { ...options, credentials: 'include', headers: { ...headers, ...options.headers } });
   const body = await response.json() as T & { error?: string };
