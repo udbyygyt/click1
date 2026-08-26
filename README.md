@@ -17,6 +17,7 @@ Solana Seeker 上的数字合成益智游戏。
 - 付费撤回订单、Solana finalized 转账验证和 MWA SOL 转账构建。
 - Caddy + Fastify 静态资源服务和腾讯云 Docker Compose 生产入口。
 - Cookie 会话、钱包登出、玩法说明、通关/结束状态和多语言法律页面。
+- dApp Store TWA/APK 构建说明：`docs/APK.md`。
 
 ## 本地开发
 
