@@ -1,0 +1,41 @@
+import { useEffect, useState } from 'react';
+import type { GameState } from '../../../src/game-engine/types';
+import { gameApi } from './api';
+import { GameBoard } from './GameBoard';
+import { text, type Language } from './i18n';
+import { playSound, vibrate } from './effects';
+import { LegalPage } from './LegalPage';
+
+const languageKey = 'click1-language';
+
+function GameApp() {
+  const [language, setLanguage] = useState<Language>(() => (localStorage.getItem(languageKey) as Language | null) ?? 'en');
+  const [token, setToken] = useState('');
+  const [state, setState] = useState<GameState | null>(null);
+  const [freeUndoAvailable, setFreeUndoAvailable] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState('');
+  const [events, setEvents] = useState<import('../../../src/game-engine/types').GameEvent[]>([]);
+  const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('click1-sound') !== 'off');
+  const [vibrationEnabled, setVibrationEnabled] = useState(() => localStorage.getItem('click1-vibration') !== 'off');
+  const copy = text(language);
+  useEffect(() => { document.documentElement.lang = language; localStorage.setItem(languageKey, language); }, [language]);
+  useEffect(() => { if (!token) { gameApi.session().then(() => setToken('cookie')).catch(() => undefined); return; } setBusy(true); Promise.all([gameApi.start(token), gameApi.undoStatus(token)]).then(([game, undo]) => { setState(game.state); setFreeUndoAvailable(undo.available); }).catch(() => setStatus(copy.error)).finally(() => setBusy(false)); }, [token, copy.error]);
+  const move = async (row: number, col: number) => { if (!token) return; setBusy(true); try { const result = await gameApi.move(token, row, col); setState(result.state); setEvents(result.events); playSound(result.events.some((event) => event.type === 'merge') ? 'merge' : 'click', soundEnabled); vibrate(vibrationEnabled); setStatus(''); } catch { setStatus(copy.error); } finally { setBusy(false); } };
+  const undo = async () => { if (!token) return; setBusy(true); try { const undoStatus = await gameApi.undoStatus(token); setFreeUndoAvailable(undoStatus.available); if (undoStatus.available) { setState(await gameApi.freeUndo(token)); setFreeUndoAvailable(false); } else { const order = await gameApi.paidUndoQuote(token); const { payForUndo } = await import('./wallet'); const signature = await payForUndo(order); setState(await gameApi.paidUndoConfirm(token, order.id, signature)); } setEvents([]); playSound('undo', soundEnabled); vibrate(vibrationEnabled); setStatus(''); } catch (error) { setStatus(error instanceof Error ? error.message : copy.error); } finally { setBusy(false); } };
+  const newGame = async () => { if (!token || !window.confirm(copy.confirmNewGame)) return; setBusy(true); try { setState((await gameApi.start(token, true)).state); setEvents([]); setStatus(''); } catch { setStatus(copy.error); } finally { setBusy(false); } };
+  const disconnect = async () => { if (!token) return; setBusy(true); try { await gameApi.logout(token); const { disconnectWallet } = await import('./wallet'); await disconnectWallet(); setToken(''); setState(null); setEvents([]); } catch (error) { setStatus(error instanceof Error ? error.message : copy.error); } finally { setBusy(false); } };
+  const deleteAccount = async () => { if (!token || !window.confirm(copy.confirmDelete)) return; setBusy(true); try { await gameApi.deleteAccount(token); const { disconnectWallet } = await import('./wallet'); await disconnectWallet(); setToken(''); setState(null); setEvents([]); } catch (error) { setStatus(error instanceof Error ? error.message : copy.error); } finally { setBusy(false); } };
+  const connect = async () => { setBusy(true); setStatus(''); try { const { connectAndSignIn } = await import('./wallet'); await connectAndSignIn(); setToken('cookie'); const [game, undoStatus] = await Promise.all([gameApi.start('cookie'), gameApi.undoStatus('cookie')]); setState(game.state); setFreeUndoAvailable(undoStatus.available); } catch (error) { setStatus(error instanceof Error ? error.message : copy.error); } finally { setBusy(false); } };
+  const toggleSound = () => { setSoundEnabled((enabled) => { const next = !enabled; localStorage.setItem('click1-sound', next ? 'on' : 'off'); return next; }); };
+  const toggleVibration = () => { setVibrationEnabled((enabled) => { const next = !enabled; localStorage.setItem('click1-vibration', next ? 'on' : 'off'); return next; }); };
+  return <main id="main-content" className="shell"><header className="topbar"><div><span className="eyebrow">SOLANA SEEKER</span><h1>Click+1</h1></div><label className="language-control">{copy.language}<select value={language} onChange={(event) => setLanguage(event.target.value as Language)}><option value="en">English</option><option value="zh-CN">简体中文</option><option value="ja">日本語</option></select></label></header>{!token ? <section className="wallet-gate"><p>{copy.tagline}</p><p className="supporting">{copy.walletRequired}</p><button type="button" className="action-primary" disabled={busy} onClick={connect}>{copy.connect}</button><details className="how-to"><summary>{copy.howToPlay}</summary><ol><li>{copy.howTo1}</li><li>{copy.howTo2}</li><li>{copy.howTo3}</li><li>{copy.howTo4}</li></ol></details></section> : busy && !state ? <p role="status">{copy.loading}</p> : state ? <><GameBoard state={state} language={language} busy={busy} freeUndoAvailable={freeUndoAvailable} events={events} onMove={move} onUndo={undo} onNewGame={newGame} /><div className="preferences"><label><input type="checkbox" checked={soundEnabled} onChange={toggleSound} /> {copy.sound}</label><label><input type="checkbox" checked={vibrationEnabled} onChange={toggleVibration} /> {copy.vibration}</label><button type="button" className="action-secondary disconnect" disabled={busy} onClick={disconnect}>{copy.disconnect}</button><button type="button" className="action-danger" disabled={busy} onClick={deleteAccount}>{copy.deleteAccount}</button></div></> : null}<nav className="footer-links" aria-label="Legal links"><a href="/privacy">{copy.privacy}</a><a href="/terms">{copy.terms}</a><a href="/support">{copy.support}</a></nav><p className="status" role="status" aria-live="polite">{status}</p></main>;
+}
+
+export function App() {
+  const route = window.location.pathname;
+  if (route === '/privacy') return <LegalPage kind="privacy" />;
+  if (route === '/terms') return <LegalPage kind="terms" />;
+  if (route === '/support') return <LegalPage kind="support" />;
+  return <GameApp />;
+}
