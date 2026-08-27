@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "xyz.nfthubcity.click1.twa",
+      "sha256_cert_fingerprints": [
+        "DE:69:0E:8E:A2:FD:D1:3D:E0:CD:31:F9:AE:68:85:CF:9F:E3:E3:11:5C:EC:86:2F:F7:8B:C4:99:B1:BA:74:74"
+      ]
+    }
+  }
+]
