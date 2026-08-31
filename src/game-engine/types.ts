@@ -22,7 +22,7 @@ export interface MoveSnapshot extends GameState {
 export type GameEvent =
   | { type: 'click'; row: number; col: number; from: number; to: number }
   | { type: 'merge'; value: number; inputSum: number; cells: Array<[number, number]>; anchor: [number, number] }
-  | { type: 'fall'; moved: Array<{ from: [number, number]; to: [number, number]; value: number }> }
+  | { type: 'fall'; moved: Array<{ from: [number, number]; downTo: [number, number]; to: [number, number]; value: number }> }
   | { type: 'spawn'; row: number; col: number; value: number };
 
 export interface MoveResult {

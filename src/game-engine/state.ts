@@ -20,9 +20,7 @@ export function createInitialState(seed: number): GameState {
     status: 'playing',
   };
 
-  for (let index = 0; index < 6; index += 1) {
-    spawnTile(state, []);
-  }
+  fillBoard(state, []);
   return state;
 }
 
@@ -126,21 +124,43 @@ function findGroups(board: number[][]): Array<{ value: number; cells: Array<[num
   return groups.sort((left, right) => right.anchor[0] - left.anchor[0] || right.anchor[1] - left.anchor[1]);
 }
 
-function applyGravity(state: GameState, events: GameEvent[]): void {
-  const moved: Array<{ from: [number, number]; to: [number, number]; value: number }> = [];
+function fillBoard(state: GameState, events: GameEvent[]): void {
+  while (spawnTile(state, events)) {
+    // Keep the board full after every action.
+  }
+}
+
+function applyDownThenLeft(state: GameState, events: GameEvent[]): void {
+  type Piece = { value: number; from: [number, number]; downTo: [number, number]; to: [number, number] };
+  const down: Array<Array<Piece | null>> = createEmptyBoard().map((row) => row.map(() => null));
+  const pieces: Piece[] = [];
+
   for (let col = 0; col < BOARD_SIZE; col += 1) {
-    const values: Array<{ row: number; value: number }> = [];
+    let nextRow = BOARD_SIZE - 1;
     for (let row = BOARD_SIZE - 1; row >= 0; row -= 1) {
       const value = state.board[row]![col]!;
-      if (value !== 0) values.push({ row, value });
+      if (value === 0) continue;
+      const piece: Piece = { value, from: [row, col], downTo: [nextRow, col], to: [nextRow, col] };
+      down[nextRow]![col] = piece;
+      pieces.push(piece);
+      nextRow -= 1;
     }
-    for (let row = 0; row < BOARD_SIZE; row += 1) state.board[row]![col] = 0;
-    values.forEach(({ row: fromRow, value }, index) => {
-      const toRow = BOARD_SIZE - 1 - index;
-      state.board[toRow]![col] = value;
-      if (fromRow !== toRow) moved.push({ from: [fromRow, col], to: [toRow, col], value });
-    });
   }
+
+  const settled: Array<Array<Piece | null>> = createEmptyBoard().map((row) => row.map(() => null));
+  for (let row = 0; row < BOARD_SIZE; row += 1) {
+    let nextCol = 0;
+    for (let col = 0; col < BOARD_SIZE; col += 1) {
+      const piece = down[row]![col];
+      if (!piece) continue;
+      piece.to = [row, nextCol];
+      settled[row]![nextCol] = piece;
+      nextCol += 1;
+    }
+  }
+
+  state.board = settled.map((row) => row.map((piece) => piece?.value ?? 0));
+  const moved = pieces.filter((piece) => piece.from[0] !== piece.to[0] || piece.from[1] !== piece.to[1]);
   if (moved.length > 0) events.push({ type: 'fall', moved });
 }
 
@@ -171,10 +191,9 @@ export function applyMove(input: GameState, row: number, col: number, moveId: st
       state.energy = Math.min(MAX_ENERGY, state.energy + 1);
       events.push({ type: 'merge', value: group.value + 1, inputSum, cells: group.cells, anchor: group.anchor });
     }
-    applyGravity(state, events);
+    applyDownThenLeft(state, events);
   }
-  const spawned = spawnTile(state, events);
-  if (!spawned && !merged) state.status = 'game_over';
+  fillBoard(state, events);
   state.maxTile = Math.max(0, ...state.board.flat());
   state.canUndo = true;
   state.lastMoveId = moveId;

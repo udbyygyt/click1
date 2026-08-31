@@ -38,8 +38,9 @@ select { min-height: 44px; padding: 0 30px 0 12px; color: #f4f7ff; background: #
 .tile { aspect-ratio: 1; padding: 0; color: #101426; border: 0; border-radius: 10px; font-size: clamp(20px, 8vw, 34px); font-weight: 750; transition: transform 150ms ease, filter 150ms ease; }
 .tile:not(:disabled):hover { transform: translateY(-2px); filter: brightness(1.1); }
 .tile-clicked { animation: tile-pop 160ms ease-out; }
-.tile-spawned { animation: tile-drop 240ms ease-out; }
+.tile-spawned { animation: tile-drop 300ms cubic-bezier(.18,.78,.32,1); }
 .tile-merged { animation: tile-merge 260ms ease-out; }
+.tile-settling { animation: tile-settle 380ms cubic-bezier(.2,.75,.25,1); }
 .tile-0 { color: transparent; background: #18233e; }
 .tile-1 { background: #c8d5ff; }.tile-2 { background: #a8e6cf; }.tile-3 { background: #f6c453; }.tile-4 { background: #f39c73; }.tile-5 { background: #ed7892; }.tile-6 { color: #fff; background: #9576d8; }.tile-7 { color: #fff; background: #5579c9; }.tile-8 { color: #fff; background: #3b9da5; }.tile-9, .tile-10 { color: #fff; background: #34415f; }
 .undo-note { min-height: 24px; margin: 14px 0 10px; font-size: 13px; }
@@ -58,7 +59,8 @@ select { min-height: 44px; padding: 0 30px 0 12px; color: #f4f7ff; background: #
 .network-banner { margin-bottom: 10px; color: #aeb9d8; font-size: 12px; }
 .network-banner.offline { color: #f6c453; }
 @keyframes tile-pop { 50% { transform: scale(1.14); filter: brightness(1.18); } }
-@keyframes tile-drop { from { transform: translateY(-18px) scale(.86); opacity: .2; } 70% { transform: translateY(3px) scale(1.04); } to { transform: translateY(0) scale(1); opacity: 1; } }
+@keyframes tile-drop { from { transform: translateY(-260%) scale(.86); opacity: .2; } 74% { transform: translateY(4px) scale(1.04); } to { transform: translateY(0) scale(1); opacity: 1; } }
+@keyframes tile-settle { 0% { transform: translate(var(--settle-from-x), var(--settle-from-y)); } 62% { transform: translate(var(--settle-down-x), var(--settle-down-y)); } 100% { transform: translate(0, 0); } }
 @keyframes tile-merge { 40% { transform: scale(1.24); filter: brightness(1.3); } 100% { transform: scale(1); } }
 @media (max-width: 380px) { .shell { width: min(100% - 20px, 520px); padding-top: 16px; } .board { gap: 5px; padding: 7px; } .tile { border-radius: 8px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }

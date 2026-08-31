@@ -9,14 +9,14 @@ import {
 } from '../src/game-engine/index.js';
 
 describe('createInitialState', () => {
-  it('creates a deterministic playable 6x6 board with five energy', () => {
+  it('creates a deterministic full 6x6 board with five energy', () => {
     const first = createInitialState(123);
     const second = createInitialState(123);
 
     expect(first).toEqual(second);
     expect(first.board).toHaveLength(BOARD_SIZE);
     expect(first.board.every((row) => row.length === BOARD_SIZE)).toBe(true);
-    expect(first.board.flat().filter((value) => value > 0)).toHaveLength(6);
+    expect(first.board.flat().filter((value) => value > 0)).toHaveLength(BOARD_SIZE * BOARD_SIZE);
     expect(first.energy).toBe(INITIAL_ENERGY);
     expect(first.canUndo).toBe(false);
     expect(first.status).toBe('playing');
@@ -28,7 +28,7 @@ describe('createInitialState', () => {
 });
 
 describe('applyMove', () => {
-  it('increments a tile, spends energy, and creates one new tile', () => {
+  it('increments a tile, spends energy, and refills the board', () => {
     const state = createStateFromBoard([
       [0, 0, 0, 0, 0, 0],
       [0, 0, 0, 0, 0, 0],
@@ -44,7 +44,29 @@ describe('applyMove', () => {
     expect(result.state.energy).toBe(INITIAL_ENERGY - 1);
     expect(result.state.canUndo).toBe(true);
     expect(result.state.lastMoveId).toBe('move-1');
-    expect(result.events.some((event) => event.type === 'spawn')).toBe(true);
+    expect(result.state.board.flat().filter((value) => value > 0)).toHaveLength(BOARD_SIZE * BOARD_SIZE);
+  });
+
+  it('settles remaining tiles down and then left before refilling', () => {
+    const state = createStateFromBoard([
+      [1, 0, 0, 0, 0, 0],
+      [1, 0, 0, 0, 0, 0],
+      [1, 0, 0, 0, 0, 0],
+      [0, 5, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0],
+      [0, 6, 2, 0, 0, 0],
+    ], 42);
+
+    const result = applyMove(state, 5, 2, 'move-1');
+    const fall = result.events.find((event) => event.type === 'fall');
+
+    expect(fall).toMatchObject({
+      type: 'fall',
+      moved: expect.arrayContaining([
+        { from: [3, 1], downTo: [4, 1], to: [4, 0], value: 5 },
+      ]),
+    });
+    expect(result.state.board.flat().filter((value) => value > 0)).toHaveLength(BOARD_SIZE * BOARD_SIZE);
   });
 
   it('merges three orthogonally connected tiles and scores their input sum', () => {
@@ -60,8 +82,8 @@ describe('applyMove', () => {
     const result = applyMove(state, 4, 1, 'move-1');
 
     expect(result.state.score).toBe(9);
-    expect(result.state.board[5][1]).toBe(4);
-    expect(result.state.board.flat().filter((value) => value === 3)).toHaveLength(0);
+    expect(result.state.board[5][0]).toBe(4);
+    expect(result.events).toContainEqual(expect.objectContaining({ type: 'merge', value: 4, inputSum: 9 }));
   });
 
   it('allows only one undo until a new move is made', () => {
