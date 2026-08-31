@@ -83,6 +83,12 @@ describe('applyMove', () => {
     expect(result.state.score).toBe(90);
     expect(result.state.board[4][0]).toBe(4);
     expect(result.events).toContainEqual(expect.objectContaining({ type: 'merge', value: 4, inputSum: 90 }));
+    const mergeIndex = result.events.findIndex((event) => event.type === 'merge');
+    const fallIndex = result.events.findIndex((event) => event.type === 'fall');
+    const spawnIndex = result.events.findIndex((event) => event.type === 'spawn');
+    expect(mergeIndex).toBeGreaterThanOrEqual(0);
+    expect(fallIndex).toBeGreaterThan(mergeIndex);
+    expect(spawnIndex).toBeGreaterThan(fallIndex);
   });
 
   it('creates a plus-one tile at the trigger point for three equal twos', () => {
