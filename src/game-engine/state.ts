@@ -120,37 +120,6 @@ function neighbors(row: number, col: number): Array<[number, number]> {
   return result;
 }
 
-function findGroups(board: number[][]): Array<{ value: number; cells: Array<[number, number]>; anchor: [number, number] }> {
-  const visited = new Set<string>();
-  const groups: Array<{ value: number; cells: Array<[number, number]>; anchor: [number, number] }> = [];
-  for (let row = 0; row < BOARD_SIZE; row += 1) {
-    for (let col = 0; col < BOARD_SIZE; col += 1) {
-      const value = board[row]![col]!;
-      const key = `${row},${col}`;
-      if (value === 0 || visited.has(key)) continue;
-      const cells: Array<[number, number]> = [];
-      const queue: Array<[number, number]> = [[row, col]];
-      visited.add(key);
-      while (queue.length > 0) {
-        const [currentRow, currentCol] = queue.shift()!;
-        cells.push([currentRow, currentCol]);
-        for (const [nextRow, nextCol] of neighbors(currentRow, currentCol)) {
-          const nextKey = `${nextRow},${nextCol}`;
-          if (!visited.has(nextKey) && board[nextRow]![nextCol] === value) {
-            visited.add(nextKey);
-            queue.push([nextRow, nextCol]);
-          }
-        }
-      }
-      if (cells.length >= 3) {
-        const anchor = cells.reduce((best, cell) => cell[0] > best[0] || (cell[0] === best[0] && cell[1] > best[1]) ? cell : best);
-        groups.push({ value, cells, anchor });
-      }
-    }
-  }
-  return groups.sort((left, right) => right.anchor[0] - left.anchor[0] || right.anchor[1] - left.anchor[1]);
-}
-
 function findGroupAt(board: number[][], row: number, col: number): { value: number; cells: Array<[number, number]>; anchor: [number, number] } | null {
   const value = board[row]![col]!;
   if (value === 0) return null;
@@ -179,8 +148,8 @@ function fillBoard(state: GameState, events: GameEvent[]): void {
   }
 }
 
-function applyDownThenLeft(state: GameState, events: GameEvent[]): void {
-  type Piece = { value: number; from: [number, number]; downTo: [number, number]; to: [number, number] };
+function applyDownThenLeft(state: GameState, events: GameEvent[], trigger: [number, number]): [number, number] {
+  type Piece = { value: number; from: [number, number]; downTo: [number, number]; to: [number, number]; isTrigger: boolean };
   const down: Array<Array<Piece | null>> = createEmptyBoard().map((row) => row.map(() => null));
   const pieces: Piece[] = [];
 
@@ -189,7 +158,7 @@ function applyDownThenLeft(state: GameState, events: GameEvent[]): void {
     for (let row = BOARD_SIZE - 1; row >= 0; row -= 1) {
       const value = state.board[row]![col]!;
       if (value === 0) continue;
-      const piece: Piece = { value, from: [row, col], downTo: [nextRow, col], to: [nextRow, col] };
+      const piece: Piece = { value, from: [row, col], downTo: [nextRow, col], to: [nextRow, col], isTrigger: row === trigger[0] && col === trigger[1] };
       down[nextRow]![col] = piece;
       pieces.push(piece);
       nextRow -= 1;
@@ -210,7 +179,9 @@ function applyDownThenLeft(state: GameState, events: GameEvent[]): void {
 
   state.board = settled.map((row) => row.map((piece) => piece?.value ?? 0));
   const moved = pieces.filter((piece) => piece.from[0] !== piece.to[0] || piece.from[1] !== piece.to[1]);
-  if (moved.length > 0) events.push({ type: 'fall', moved });
+  if (moved.length > 0) events.push({ type: 'fall', moved: moved.map(({ value, from, downTo, to }) => ({ value, from, downTo, to })) });
+  const triggerPiece = pieces.find((piece) => piece.isTrigger);
+  return triggerPiece?.to ?? trigger;
 }
 
 export function applyMove(input: GameState, row: number, col: number, moveId: string): MoveResult {
@@ -227,22 +198,21 @@ export function applyMove(input: GameState, row: number, col: number, moveId: st
   state.board[row]![col] = from + 1;
   state.energy -= 1;
   events.push({ type: 'click', row, col, from, to: from + 1 });
+  let trigger: [number, number] = [row, col];
   let groups = findGroupAt(state.board, row, col);
   let chain = 0;
   while (groups) {
     chain += 1;
-    const resolvingGroups = [groups];
-    for (const group of resolvingGroups) {
-      const inputSum = group.value * 10 * Math.min(chain, 5);
-      for (const [cellRow, cellCol] of group.cells) state.board[cellRow]![cellCol] = 0;
-      state.board[group.anchor[0]]![group.anchor[1]] = group.value + 1;
-      state.score += inputSum;
-      state.energy = Math.min(MAX_ENERGY, state.energy + 1);
-      events.push({ type: 'merge', value: group.value + 1, inputSum, cells: group.cells, anchor: group.anchor });
-    }
-    applyDownThenLeft(state, events);
-    const cascades = findGroups(state.board);
-    groups = cascades[0] ?? null;
+    const mergeTrigger = chain === 1 ? trigger : groups.cells.reduce((best, cell) => cell[0] > best[0] || (cell[0] === best[0] && cell[1] < best[1]) ? cell : best);
+    const inputSum = groups.value * groups.cells.length * 10 * Math.min(chain, 5);
+    for (const [cellRow, cellCol] of groups.cells) state.board[cellRow]![cellCol] = 0;
+    const nextValue = groups.value + 1;
+    state.board[mergeTrigger[0]]![mergeTrigger[1]] = nextValue;
+    state.score += inputSum;
+    state.energy = Math.min(MAX_ENERGY, state.energy + 1);
+    events.push({ type: 'merge', value: nextValue, inputSum, cells: groups.cells, anchor: mergeTrigger });
+    trigger = applyDownThenLeft(state, events, mergeTrigger);
+    groups = findGroupAt(state.board, trigger[0], trigger[1]);
   }
   fillBoard(state, events);
   state.maxTile = Math.max(0, ...state.board.flat());

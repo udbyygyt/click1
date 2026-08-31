@@ -7,6 +7,9 @@ interface GameBoardProps { state: GameState; language: Language; busy: boolean; 
 
 export function GameBoard({ state, language, busy, guestMode, freeUndoAvailable, events, onMove, onUndo, onNewGame }: GameBoardProps) {
   const copy = text(language);
+  const mergeEffects = events.flatMap((event, mergeIndex) => event.type === 'merge'
+    ? event.cells.filter(([row, col]) => row !== event.anchor[0] || col !== event.anchor[1]).map(([row, col]) => ({ event, mergeIndex, row, col }))
+    : []);
   return <section className="game" aria-busy={busy}>
     <div className="stats" aria-label="Game status">
       <div><span>{copy.score}</span><strong>{state.score}</strong></div><div><span>{copy.energy}</span><strong>{state.energy}/5</strong></div><div><span>{copy.highest}</span><strong>{state.highScore ?? state.score}</strong></div>
@@ -28,8 +31,10 @@ export function GameBoard({ state, language, busy, guestMode, freeUndoAvailable,
           '--spawn-from-y': `${-(rowIndex + 1) * 110}%`,
           '--spawn-delay': `${falls.length * 420 + (rowIndex * state.board.length + colIndex) * 36}ms`,
         } as CSSProperties : undefined;
-        return <button className={`tile tile-${Math.min(value, 10)}${clicked ? ' tile-clicked' : ''}${spawned ? ' tile-spawned' : ''}${merged ? ' tile-merged' : ''}${fall ? ' tile-settling' : ''}`} style={animationStyle} type="button" role="gridcell" key={`${rowIndex}-${colIndex}-${events.length}-${fall ? `${fall.move.from}-${fall.move.to}` : spawned ? 'spawn' : 'still'}`} disabled={busy || value === 0 || state.energy === 0 || state.status !== 'playing'} aria-label={value === 0 ? copy.empty : copy.move.replace('{value}', String(value))} onClick={() => onMove(rowIndex, colIndex)}>{value || ''}</button>;
+        const className = `tile tile-${Math.min(value, 10)}${clicked ? ' tile-clicked' : ''}${spawned ? ' tile-spawned' : ''}${merged ? ' tile-merged' : ''}${fall ? ' tile-settling' : ''}`;
+        return <button className={className} style={animationStyle} type="button" role="gridcell" key={`${rowIndex}-${colIndex}-${events.length}-${fall ? `${fall.move.from}-${fall.move.to}` : spawned ? 'spawn' : 'still'}`} disabled={busy || value === 0 || state.energy === 0 || state.status !== 'playing'} aria-label={value === 0 ? copy.empty : copy.move.replace('{value}', String(value))} onClick={() => onMove(rowIndex, colIndex)}>{value || ''}</button>;
       }))}
+      {mergeEffects.length > 0 && <div className="merge-fx-layer" aria-hidden="true">{mergeEffects.map(({ event, mergeIndex, row, col }) => <span className={`tile tile-${Math.min(event.value - 1, 10)} merge-fx`} style={{ gridRow: row + 1, gridColumn: col + 1, '--merge-dx': `${(event.anchor[1] - col) * 100}%`, '--merge-dy': `${(event.anchor[0] - row) * 100}%`, '--merge-delay': `${mergeIndex * 520}ms` } as CSSProperties} key={`merge-${mergeIndex}-${row}-${col}`}>{event.value - 1}</span>)}</div>}
     </div>
     <p className="undo-note">{state.status === 'won' ? copy.won : state.status === 'game_over' ? copy.gameOver : !state.canUndo ? copy.noUndo : guestMode ? copy.guestUndo : freeUndoAvailable ? copy.freeUndo : copy.paidUndo}</p>
     <div className="actions"><button className="action-primary" type="button" disabled={busy || !state.canUndo} onClick={onUndo}>{copy.undo}</button><button className="action-secondary" type="button" disabled={busy} onClick={onNewGame}>{copy.newGame}</button></div>

@@ -80,9 +80,25 @@ describe('applyMove', () => {
 
     const result = applyMove(state, 3, 1, 'move-1');
 
-    expect(result.state.score).toBe(30);
+    expect(result.state.score).toBe(90);
     expect(result.state.board[4][0]).toBe(4);
-    expect(result.events).toContainEqual(expect.objectContaining({ type: 'merge', value: 4, inputSum: 30 }));
+    expect(result.events).toContainEqual(expect.objectContaining({ type: 'merge', value: 4, inputSum: 90 }));
+  });
+
+  it('creates a plus-one tile at the trigger point for three equal twos', () => {
+    const state = createStateFromBoard([
+      [0, 2, 0, 0, 0],
+      [0, 1, 0, 0, 0],
+      [0, 2, 0, 0, 0],
+      [0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0],
+    ], 42);
+
+    const result = applyMove(state, 1, 1, 'move-1');
+    const merge = result.events.find((event) => event.type === 'merge');
+
+    expect(merge).toMatchObject({ type: 'merge', value: 3, inputSum: 60, anchor: [1, 1] });
+    expect(result.state.score).toBe(60);
   });
 
   it('allows only one undo until a new move is made', () => {
