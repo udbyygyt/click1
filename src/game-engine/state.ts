@@ -88,14 +88,7 @@ function generatedValue(state: GameState, row: number, col: number): number {
     target -= profile.weights[index]!;
     if (target <= 0) { start = index; break; }
   }
-  for (let offset = 0; offset < profile.values.length; offset += 1) {
-    const value = profile.values[(start + offset) % profile.values.length]!;
-    state.board[row]![col] = value;
-    const createsMatch = findGroupAt(state.board, row, col) !== null;
-    state.board[row]![col] = 0;
-    if (!createsMatch) return value;
-  }
-  return start + 1;
+  return profile.values[start]!;
 }
 
 function spawnTile(state: GameState, events: GameEvent[]): boolean {
@@ -142,10 +135,38 @@ function findGroupAt(board: number[][], row: number, col: number): { value: numb
   return { value, cells, anchor };
 }
 
-function fillBoard(state: GameState, events: GameEvent[]): void {
+function fillBoard(state: GameState, events: GameEvent[]): Array<[number, number]> {
+  const spawned: Array<[number, number]> = [];
   while (spawnTile(state, events)) {
-    // Keep the board full after every action.
+    const event = events[events.length - 1];
+    if (event?.type === 'spawn') spawned.push([event.row, event.col]);
   }
+  return spawned;
+}
+
+type Group = NonNullable<ReturnType<typeof findGroupAt>>;
+
+function findGroups(board: number[][]): Group[] {
+  const groups: Group[] = [];
+  const visited = new Set<string>();
+  for (let row = 0; row < BOARD_SIZE; row += 1) {
+    for (let col = 0; col < BOARD_SIZE; col += 1) {
+      const key = `${row},${col}`;
+      if (visited.has(key) || board[row]![col] === 0) continue;
+      const group = findGroupAt(board, row, col);
+      if (!group) {
+        visited.add(key);
+        continue;
+      }
+      groups.push(group);
+      for (const [cellRow, cellCol] of group.cells) visited.add(`${cellRow},${cellCol}`);
+    }
+  }
+  return groups;
+}
+
+function chooseBottomLeft(cells: Array<[number, number]>): [number, number] {
+  return cells.reduce((best, cell) => cell[0] > best[0] || (cell[0] === best[0] && cell[1] < best[1]) ? cell : best);
 }
 
 function applyDownThenLeft(state: GameState, events: GameEvent[], trigger: [number, number]): [number, number] {
@@ -191,6 +212,7 @@ export function applyMove(input: GameState, row: number, col: number, moveId: st
     throw new Error('invalid cell');
   }
   if (input.board[row]![col] === 0) throw new Error('cannot click empty cell');
+  const wasFull = input.board.every((boardRow) => boardRow.every((value) => value !== 0));
   const snapshot: MoveSnapshot = { ...cloneState(input), moveId: input.lastMoveId };
   const state = cloneState(input);
   const events: GameEvent[] = [];
@@ -198,23 +220,38 @@ export function applyMove(input: GameState, row: number, col: number, moveId: st
   state.board[row]![col] = from + 1;
   state.energy -= 1;
   events.push({ type: 'click', row, col, from, to: from + 1 });
-  let trigger: [number, number] = [row, col];
-  let groups = findGroupAt(state.board, row, col);
   let chain = 0;
-  while (groups) {
-    chain += 1;
-    const mergeTrigger = chain === 1 ? trigger : groups.cells.reduce((best, cell) => cell[0] > best[0] || (cell[0] === best[0] && cell[1] < best[1]) ? cell : best);
-    const inputSum = groups.value * groups.cells.length * 10 * Math.min(chain, 5);
-    for (const [cellRow, cellCol] of groups.cells) state.board[cellRow]![cellCol] = 0;
-    const nextValue = groups.value + 1;
-    state.board[mergeTrigger[0]]![mergeTrigger[1]] = nextValue;
-    state.score += inputSum;
-    state.energy = Math.min(MAX_ENERGY, state.energy + 1);
-    events.push({ type: 'merge', value: nextValue, inputSum, cells: groups.cells, anchor: mergeTrigger });
-    trigger = applyDownThenLeft(state, events, mergeTrigger);
-    groups = findGroupAt(state.board, trigger[0], trigger[1]);
+  const resolveChain = (initialGroup: Group, initialTrigger: [number, number]): void => {
+    let trigger = initialTrigger;
+    let groups: Group | null = initialGroup;
+    while (groups) {
+      chain += 1;
+      const mergeTrigger = chain === 1 ? trigger : chooseBottomLeft(groups.cells);
+      const inputSum = groups.value * groups.cells.length * 10 * Math.min(chain, 5);
+      for (const [cellRow, cellCol] of groups.cells) state.board[cellRow]![cellCol] = 0;
+      const nextValue = groups.value + 1;
+      state.board[mergeTrigger[0]]![mergeTrigger[1]] = nextValue;
+      state.score += inputSum;
+      state.energy = Math.min(MAX_ENERGY, state.energy + 1);
+      events.push({ type: 'merge', value: nextValue, inputSum, cells: groups.cells, anchor: mergeTrigger });
+      trigger = applyDownThenLeft(state, events, mergeTrigger);
+      groups = findGroupAt(state.board, trigger[0], trigger[1]);
+    }
+  };
+
+  const initialGroup = findGroupAt(state.board, row, col);
+  if (initialGroup) resolveChain(initialGroup, [row, col]);
+
+  let spawned = fillBoard(state, events);
+  while (wasFull && chain > 0 && spawned.length > 0) {
+    const spawnedKeys = new Set(spawned.map(([spawnRow, spawnCol]) => `${spawnRow},${spawnCol}`));
+    // A refill can trigger a chain, but an unrelated group already on the board stays idle.
+    const autoGroup = findGroups(state.board).find((group) => group.cells.some(([cellRow, cellCol]) => spawnedKeys.has(`${cellRow},${cellCol}`)));
+    if (!autoGroup) break;
+    const autoTrigger = chooseBottomLeft(autoGroup.cells);
+    resolveChain(autoGroup, autoTrigger);
+    spawned = fillBoard(state, events);
   }
-  fillBoard(state, events);
   state.maxTile = Math.max(0, ...state.board.flat());
   state.highScore = Math.max(state.highScore ?? state.score, state.score);
   state.canUndo = true;

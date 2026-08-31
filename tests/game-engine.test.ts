@@ -188,4 +188,19 @@ describe('applyMove', () => {
     expect(spawned.every((value) => value >= 3 && value <= 7)).toBe(true);
   });
 
+  it('auto-merges a matching group created by refill, including three ones', () => {
+    const state = createStateFromBoard([
+      [3, 3, 4, 5, 1],
+      [3, 3, 5, 1, 2],
+      [3, 3, 1, 2, 4],
+      [3, 3, 2, 4, 5],
+      [2, 4, 5, 1, 3],
+    ], 6);
+
+    const result = applyMove(state, 4, 0, 'move-1');
+    const merges = result.events.filter((event) => event.type === 'merge');
+
+    expect(merges.some((event) => event.type === 'merge' && event.value === 2 && event.cells.length >= 3)).toBe(true);
+  });
+
 });
