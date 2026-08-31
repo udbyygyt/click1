@@ -119,7 +119,9 @@ function GameApp() {
 
   const newGame = async () => {
     if (guestMode) {
-      setState(createInitialState(Date.now() >>> 0));
+      const nextState = createInitialState(Date.now() >>> 0);
+      nextState.highScore = state?.highScore ?? state?.score ?? 0;
+      setState(nextState);
       setGuestUndoSnapshot(null);
       setEvents([]);
       setStatus(copy.guestNotice);

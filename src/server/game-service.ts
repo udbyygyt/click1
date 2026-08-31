@@ -23,6 +23,12 @@ function statusFor(state: GameState): 'playing' | 'won' | 'game_over' {
   return state.status;
 }
 
+function createNewState(previous?: GameState): GameState {
+  const state = createInitialState(Date.now());
+  state.highScore = previous?.highScore ?? previous?.score ?? 0;
+  return state;
+}
+
 export class GameService {
   private readonly memoryGames = new Map<string, MemoryGame>();
   private readonly memoryEntitlements = new Map<string, Set<string>>();
@@ -35,7 +41,7 @@ export class GameService {
     if (!this.pool) {
       const current = this.memoryGames.get(walletAddress);
       if (current && !replace) return this.cloneCurrent(current);
-      this.memoryGames.set(walletAddress, { id: randomUUID(), walletAddress, state: createInitialState(Date.now()), moves: [] });
+      this.memoryGames.set(walletAddress, { id: randomUUID(), walletAddress, state: createNewState(current?.state), moves: [] });
       return this.cloneCurrent(this.memoryGames.get(walletAddress)!);
     }
 
@@ -57,7 +63,7 @@ export class GameService {
         );
       }
       const id = randomUUID();
-      const state = createInitialState(Date.now());
+      const state = createNewState(currentResult.rows[0]?.state);
       await client.query(
         'INSERT INTO games (id, wallet_address, status, state) VALUES ($1, $2, $3, $4::jsonb)',
         [id, walletAddress, statusFor(state), JSON.stringify(state)],

@@ -12,6 +12,7 @@ export function createInitialState(seed: number): GameState {
   const state: GameState = {
     board: createEmptyBoard(),
     score: 0,
+    highScore: 0,
     energy: INITIAL_ENERGY,
     maxTile: 0,
     rngState: seed,
@@ -26,11 +27,12 @@ export function createInitialState(seed: number): GameState {
 
 export function createStateFromBoard(board: number[][], seed = 1): GameState {
   if (board.length !== BOARD_SIZE || board.some((row) => row.length !== BOARD_SIZE)) {
-    throw new Error('board must be 6x6');
+    throw new Error('board must be 5x5');
   }
   const state: GameState = {
     board: board.map((row) => row.slice()),
     score: 0,
+    highScore: 0,
     energy: INITIAL_ENERGY,
     maxTile: Math.max(0, ...board.flat()),
     rngState: seed,
@@ -63,12 +65,37 @@ function getEmptyColumns(state: GameState): number[] {
     .filter((col) => state.board.some((row) => row[col] === 0));
 }
 
-function generatedValue(state: GameState): number {
-  const highest = Math.max(0, ...state.board.flat());
-  const random = nextRandom(state);
-  if (highest < 8) return random < 0.6 ? 1 : random < 0.9 ? 2 : 3;
-  if (highest < 14) return random < 0.5 ? 1 : random < 0.8 ? 2 : random < 0.95 ? 3 : 4;
-  return random < 0.45 ? 1 : random < 0.75 ? 2 : random < 0.9 ? 3 : random < 0.98 ? 4 : 5;
+interface SpawnProfile { values: number[]; weights: number[] }
+
+function getSpawnProfile(score: number): SpawnProfile {
+  if (score < 30000) return { values: [1, 2, 3, 4, 5], weights: [25, 23, 20, 18, 14] };
+  if (score < 90000) return { values: [1, 2, 3, 4, 5, 6], weights: [16, 19, 21, 19, 15, 10] };
+  if (score < 180000) return { values: [2, 3, 4, 5, 6], weights: [18, 22, 23, 20, 12] };
+  if (score < 300000) return { values: [2, 3, 4, 5, 6, 7], weights: [14, 19, 22, 20, 15, 10] };
+  const stage = Math.floor((score - 300000) / 300000);
+  const min = 3 + Math.floor(stage / 2);
+  const max = 7 + Math.ceil(stage / 2);
+  const values = Array.from({ length: max - min + 1 }, (_, index) => min + index);
+  return { values, weights: values.map((_, index) => Math.max(8, 28 - index * 4)) };
+}
+
+function generatedValue(state: GameState, row: number, col: number): number {
+  const profile = getSpawnProfile(state.score);
+  const totalWeight = profile.weights.reduce((sum, weight) => sum + weight, 0);
+  let target = nextRandom(state) * totalWeight;
+  let start = 0;
+  for (let index = 0; index < profile.weights.length; index += 1) {
+    target -= profile.weights[index]!;
+    if (target <= 0) { start = index; break; }
+  }
+  for (let offset = 0; offset < profile.values.length; offset += 1) {
+    const value = profile.values[(start + offset) % profile.values.length]!;
+    state.board[row]![col] = value;
+    const createsMatch = findGroupAt(state.board, row, col) !== null;
+    state.board[row]![col] = 0;
+    if (!createsMatch) return value;
+  }
+  return start + 1;
 }
 
 function spawnTile(state: GameState, events: GameEvent[]): boolean {
@@ -78,7 +105,7 @@ function spawnTile(state: GameState, events: GameEvent[]): boolean {
   let row = BOARD_SIZE - 1;
   while (row >= 0 && state.board[row]![col] !== 0) row -= 1;
   if (row < 0) return false;
-  const value = generatedValue(state);
+  const value = generatedValue(state, row, col);
   state.board[row]![col] = value;
   state.maxTile = Math.max(state.maxTile, value);
   events.push({ type: 'spawn', row, col, value });
@@ -122,6 +149,28 @@ function findGroups(board: number[][]): Array<{ value: number; cells: Array<[num
     }
   }
   return groups.sort((left, right) => right.anchor[0] - left.anchor[0] || right.anchor[1] - left.anchor[1]);
+}
+
+function findGroupAt(board: number[][], row: number, col: number): { value: number; cells: Array<[number, number]>; anchor: [number, number] } | null {
+  const value = board[row]![col]!;
+  if (value === 0) return null;
+  const cells: Array<[number, number]> = [];
+  const visited = new Set<string>([`${row},${col}`]);
+  const queue: Array<[number, number]> = [[row, col]];
+  while (queue.length > 0) {
+    const [currentRow, currentCol] = queue.shift()!;
+    cells.push([currentRow, currentCol]);
+    for (const [nextRow, nextCol] of neighbors(currentRow, currentCol)) {
+      const key = `${nextRow},${nextCol}`;
+      if (!visited.has(key) && board[nextRow]![nextCol] === value) {
+        visited.add(key);
+        queue.push([nextRow, nextCol]);
+      }
+    }
+  }
+  if (cells.length < 3) return null;
+  const anchor = cells.reduce((best, cell) => cell[0] > best[0] || (cell[0] === best[0] && cell[1] > best[1]) ? cell : best);
+  return { value, cells, anchor };
 }
 
 function fillBoard(state: GameState, events: GameEvent[]): void {
@@ -178,13 +227,13 @@ export function applyMove(input: GameState, row: number, col: number, moveId: st
   state.board[row]![col] = from + 1;
   state.energy -= 1;
   events.push({ type: 'click', row, col, from, to: from + 1 });
-  let merged = false;
-  while (true) {
-    const groups = findGroups(state.board);
-    if (groups.length === 0) break;
-    merged = true;
-    for (const group of groups) {
-      const inputSum = group.cells.reduce((sum, [cellRow, cellCol]) => sum + state.board[cellRow]![cellCol]!, 0);
+  let groups = findGroupAt(state.board, row, col);
+  let chain = 0;
+  while (groups) {
+    chain += 1;
+    const resolvingGroups = [groups];
+    for (const group of resolvingGroups) {
+      const inputSum = group.value * 10 * Math.min(chain, 5);
       for (const [cellRow, cellCol] of group.cells) state.board[cellRow]![cellCol] = 0;
       state.board[group.anchor[0]]![group.anchor[1]] = group.value + 1;
       state.score += inputSum;
@@ -192,9 +241,12 @@ export function applyMove(input: GameState, row: number, col: number, moveId: st
       events.push({ type: 'merge', value: group.value + 1, inputSum, cells: group.cells, anchor: group.anchor });
     }
     applyDownThenLeft(state, events);
+    const cascades = findGroups(state.board);
+    groups = cascades[0] ?? null;
   }
   fillBoard(state, events);
   state.maxTile = Math.max(0, ...state.board.flat());
+  state.highScore = Math.max(state.highScore ?? state.score, state.score);
   state.canUndo = true;
   state.lastMoveId = moveId;
   return { state, snapshot, events };
@@ -202,5 +254,5 @@ export function applyMove(input: GameState, row: number, col: number, moveId: st
 
 export function undoMove(state: GameState, snapshot: MoveSnapshot): GameState {
   if (!state.canUndo) throw new Error('no undo available');
-  return { ...cloneState(snapshot), canUndo: false, lastMoveId: snapshot.moveId };
+  return { ...cloneState(snapshot), highScore: Math.max(state.highScore ?? state.score, snapshot.highScore ?? snapshot.score), canUndo: false, lastMoveId: snapshot.moveId };
 }

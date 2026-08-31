@@ -1,4 +1,4 @@
-export const BOARD_SIZE = 6;
+export const BOARD_SIZE = 5;
 export const INITIAL_ENERGY = 5;
 export const MAX_ENERGY = 5;
 
@@ -7,6 +7,7 @@ export type GameStatus = 'playing' | 'won' | 'game_over';
 export interface GameState {
   board: number[][];
   score: number;
+  highScore?: number;
   energy: number;
   maxTile: number;
   rngState: number;
