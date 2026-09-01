@@ -169,7 +169,7 @@ function chooseBottomLeft(cells: Array<[number, number]>): [number, number] {
   return cells.reduce((best, cell) => cell[0] > best[0] || (cell[0] === best[0] && cell[1] < best[1]) ? cell : best);
 }
 
-function applyDownThenLeft(state: GameState, events: GameEvent[], trigger: [number, number]): [number, number] {
+function applyDown(state: GameState, events: GameEvent[], trigger: [number, number]): [number, number] {
   type Piece = { value: number; from: [number, number]; downTo: [number, number]; to: [number, number]; isTrigger: boolean };
   const down: Array<Array<Piece | null>> = createEmptyBoard().map((row) => row.map(() => null));
   const pieces: Piece[] = [];
@@ -186,19 +186,7 @@ function applyDownThenLeft(state: GameState, events: GameEvent[], trigger: [numb
     }
   }
 
-  const settled: Array<Array<Piece | null>> = createEmptyBoard().map((row) => row.map(() => null));
-  for (let row = 0; row < BOARD_SIZE; row += 1) {
-    let nextCol = 0;
-    for (let col = 0; col < BOARD_SIZE; col += 1) {
-      const piece = down[row]![col];
-      if (!piece) continue;
-      piece.to = [row, nextCol];
-      settled[row]![nextCol] = piece;
-      nextCol += 1;
-    }
-  }
-
-  state.board = settled.map((row) => row.map((piece) => piece?.value ?? 0));
+  state.board = down.map((row) => row.map((piece) => piece?.value ?? 0));
   const moved = pieces.filter((piece) => piece.from[0] !== piece.to[0] || piece.from[1] !== piece.to[1]);
   if (moved.length > 0) events.push({ type: 'fall', moved: moved.map(({ value, from, downTo, to }) => ({ value, from, downTo, to })) });
   const triggerPiece = pieces.find((piece) => piece.isTrigger);
@@ -234,7 +222,7 @@ export function applyMove(input: GameState, row: number, col: number, moveId: st
       state.score += inputSum;
       state.energy = Math.min(MAX_ENERGY, state.energy + 1);
       events.push({ type: 'merge', value: nextValue, inputSum, cells: groups.cells, anchor: mergeTrigger });
-      trigger = applyDownThenLeft(state, events, mergeTrigger);
+      trigger = applyDown(state, events, mergeTrigger);
       groups = findGroupAt(state.board, trigger[0], trigger[1]);
     }
   };

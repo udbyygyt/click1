@@ -48,7 +48,7 @@ describe('applyMove', () => {
     expect(result.state.board.flat().filter((value) => value > 0)).toHaveLength(BOARD_SIZE * BOARD_SIZE);
   });
 
-  it('settles remaining tiles down and then left before refilling', () => {
+  it('settles remaining tiles down without shifting columns before refilling', () => {
     const state = createStateFromBoard([
       [0, 5, 0, 0, 0],
       [0, 0, 0, 0, 0],
@@ -63,9 +63,10 @@ describe('applyMove', () => {
     expect(fall).toMatchObject({
       type: 'fall',
       moved: expect.arrayContaining([
-        { from: [0, 1], downTo: [3, 1], to: [3, 0], value: 5 },
+        { from: [0, 1], downTo: [3, 1], to: [3, 1], value: 5 },
       ]),
     });
+    expect(fall && fall.type === 'fall' && fall.moved.every(({ from, to }) => from[1] === to[1])).toBe(true);
     expect(result.state.board.flat().filter((value) => value > 0)).toHaveLength(BOARD_SIZE * BOARD_SIZE);
   });
 
@@ -81,7 +82,7 @@ describe('applyMove', () => {
     const result = applyMove(state, 3, 1, 'move-1');
 
     expect(result.state.score).toBe(90);
-    expect(result.state.board[4][0]).toBe(4);
+    expect(result.state.board[4][1]).toBe(4);
     expect(result.events).toContainEqual(expect.objectContaining({ type: 'merge', value: 4, inputSum: 90 }));
     const mergeIndex = result.events.findIndex((event) => event.type === 'merge');
     const fallIndex = result.events.findIndex((event) => event.type === 'fall');

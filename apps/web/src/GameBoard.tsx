@@ -56,9 +56,7 @@ export function GameBoard({ state, language, busy, guestMode, freeUndoAvailable,
         let animationStyle: CSSProperties | undefined;
         if (fall) {
           animationStyle = {
-            '--settle-from-x': `${(fall.move.from[1] - fall.move.to[1]) * 100}%`,
             '--settle-from-y': `${(fall.move.from[0] - fall.move.to[0]) * 100}%`,
-            '--settle-down-y': `${(fall.move.downTo[0] - fall.move.to[0]) * 100}%`,
             '--settle-delay': `${eventTimings.get(fall.eventIndex) ?? 0}ms`,
           } as CSSProperties;
         } else if (spawned) {
