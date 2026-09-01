@@ -20,11 +20,13 @@ export interface MoveSnapshot extends GameState {
   moveId: string | null;
 }
 
+export type BoardSnapshot = number[][];
+
 export type GameEvent =
-  | { type: 'click'; row: number; col: number; from: number; to: number }
-  | { type: 'merge'; value: number; inputSum: number; cells: Array<[number, number]>; anchor: [number, number] }
-  | { type: 'fall'; moved: Array<{ from: [number, number]; downTo: [number, number]; to: [number, number]; value: number }> }
-  | { type: 'spawn'; row: number; col: number; value: number };
+  | { type: 'click'; row: number; col: number; from: number; to: number; boardBefore: BoardSnapshot; boardAfter: BoardSnapshot }
+  | { type: 'merge'; value: number; inputSum: number; cells: Array<[number, number]>; anchor: [number, number]; boardBefore: BoardSnapshot; boardAfter: BoardSnapshot }
+  | { type: 'fall'; moved: Array<{ from: [number, number]; downTo: [number, number]; to: [number, number]; value: number }>; boardBefore: BoardSnapshot; boardAfter: BoardSnapshot }
+  | { type: 'spawn'; row: number; col: number; value: number; boardBefore: BoardSnapshot; boardAfter: BoardSnapshot };
 
 export interface MoveResult {
   state: GameState;

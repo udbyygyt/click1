@@ -99,9 +99,10 @@ function spawnTile(state: GameState, events: GameEvent[]): boolean {
   while (row >= 0 && state.board[row]![col] !== 0) row -= 1;
   if (row < 0) return false;
   const value = generatedValue(state, row, col);
+  const boardBefore = cloneBoard(state.board);
   state.board[row]![col] = value;
   state.maxTile = Math.max(state.maxTile, value);
-  events.push({ type: 'spawn', row, col, value });
+  events.push({ type: 'spawn', row, col, value, boardBefore, boardAfter: cloneBoard(state.board) });
   return true;
 }
 
@@ -186,9 +187,10 @@ function applyDown(state: GameState, events: GameEvent[], trigger: [number, numb
     }
   }
 
+  const boardBefore = cloneBoard(state.board);
   state.board = down.map((row) => row.map((piece) => piece?.value ?? 0));
   const moved = pieces.filter((piece) => piece.from[0] !== piece.to[0] || piece.from[1] !== piece.to[1]);
-  if (moved.length > 0) events.push({ type: 'fall', moved: moved.map(({ value, from, downTo, to }) => ({ value, from, downTo, to })) });
+  if (moved.length > 0) events.push({ type: 'fall', moved: moved.map(({ value, from, downTo, to }) => ({ value, from, downTo, to })), boardBefore, boardAfter: cloneBoard(state.board) });
   const triggerPiece = pieces.find((piece) => piece.isTrigger);
   return triggerPiece?.to ?? trigger;
 }
@@ -205,9 +207,10 @@ export function applyMove(input: GameState, row: number, col: number, moveId: st
   const state = cloneState(input);
   const events: GameEvent[] = [];
   const from = state.board[row]![col]!;
+  const clickBoardBefore = cloneBoard(state.board);
   state.board[row]![col] = from + 1;
   state.energy -= 1;
-  events.push({ type: 'click', row, col, from, to: from + 1 });
+  events.push({ type: 'click', row, col, from, to: from + 1, boardBefore: clickBoardBefore, boardAfter: cloneBoard(state.board) });
   let chain = 0;
   const resolveChain = (initialGroup: Group, initialTrigger: [number, number]): void => {
     let trigger = initialTrigger;
@@ -216,12 +219,13 @@ export function applyMove(input: GameState, row: number, col: number, moveId: st
       chain += 1;
       const mergeTrigger = chain === 1 ? trigger : chooseBottomLeft(groups.cells);
       const inputSum = groups.value * groups.cells.length * 10 * Math.min(chain, 5);
+      const mergeBoardBefore = cloneBoard(state.board);
       for (const [cellRow, cellCol] of groups.cells) state.board[cellRow]![cellCol] = 0;
       const nextValue = groups.value + 1;
       state.board[mergeTrigger[0]]![mergeTrigger[1]] = nextValue;
       state.score += inputSum;
       state.energy = Math.min(MAX_ENERGY, state.energy + 1);
-      events.push({ type: 'merge', value: nextValue, inputSum, cells: groups.cells, anchor: mergeTrigger });
+      events.push({ type: 'merge', value: nextValue, inputSum, cells: groups.cells, anchor: mergeTrigger, boardBefore: mergeBoardBefore, boardAfter: cloneBoard(state.board) });
       trigger = applyDown(state, events, mergeTrigger);
       groups = findGroupAt(state.board, trigger[0], trigger[1]);
     }

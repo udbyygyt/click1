@@ -84,6 +84,9 @@ describe('applyMove', () => {
     expect(result.state.score).toBe(90);
     expect(result.state.board[4][1]).toBe(4);
     expect(result.events).toContainEqual(expect.objectContaining({ type: 'merge', value: 4, inputSum: 90 }));
+    const merge = result.events.find((event) => event.type === 'merge');
+    expect(merge && merge.type === 'merge' ? merge.boardAfter[3][1] : null).toBe(4);
+    expect(merge && merge.type === 'merge' ? merge.boardAfter[3][2] : null).toBe(0);
     const mergeIndex = result.events.findIndex((event) => event.type === 'merge');
     const fallIndex = result.events.findIndex((event) => event.type === 'fall');
     const spawnIndex = result.events.findIndex((event) => event.type === 'spawn');
@@ -106,6 +109,23 @@ describe('applyMove', () => {
 
     expect(merge).toMatchObject({ type: 'merge', value: 3, inputSum: 60, anchor: [1, 1] });
     expect(result.state.score).toBe(60);
+  });
+
+  it('uses the leftmost tile on the bottommost row as the automatic chain anchor', () => {
+    const state = createStateFromBoard([
+      [0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0],
+      [0, 3, 2, 3, 0],
+      [0, 4, 4, 4, 0],
+    ], 42);
+
+    const result = applyMove(state, 3, 2, 'move-1');
+    const merges = result.events.filter((event) => event.type === 'merge');
+
+    expect(merges).toHaveLength(2);
+    expect(merges[0]).toMatchObject({ anchor: [3, 2], value: 4 });
+    expect(merges[1]).toMatchObject({ anchor: [4, 1], value: 5 });
   });
 
   it('allows only one undo until a new move is made', () => {
