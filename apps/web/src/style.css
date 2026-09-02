@@ -37,7 +37,7 @@ select { min-height: 44px; padding: 0 30px 0 12px; color: #f4f7ff; background: #
 .board { position: relative; display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; padding: 9px; border: 1px solid #33446f; border-radius: 17px; background: #0f172c; }
 .tile { position: relative; overflow: visible; aspect-ratio: 1; padding: 0; color: #101426; border: 0; border-radius: 10px; font-size: clamp(20px, 8vw, 34px); font-weight: 750; transition: filter 150ms ease; }
 .tile:not(:disabled):hover { transform: translateY(-2px); filter: brightness(1.1); }
-.phase-layer { position: absolute; inset: 9px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; z-index: 6; pointer-events: none; }
+.phase-layer { --board-gap: 7px; position: absolute; inset: 9px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--board-gap); z-index: 6; pointer-events: none; }
 .phase-piece { z-index: 1; will-change: transform, opacity; }
 .merge-piece { animation: merge-path-vertical 280ms cubic-bezier(.2,.75,.25,1) both; }
 .merge-piece-horizontal { animation-name: merge-path-horizontal; }
@@ -65,8 +65,8 @@ select { min-height: 44px; padding: 0 30px 0 12px; color: #f4f7ff; background: #
 .network-banner.offline { color: #f6c453; }
 @keyframes tile-drop { from { transform: translateY(var(--spawn-from-y, -110%)) scale(.86); opacity: 0; } 74% { transform: translateY(4px) scale(1.04); opacity: 1; } to { transform: translateY(0) scale(1); opacity: 1; } }
 @keyframes tile-fall { 0% { transform: translateY(var(--fall-from-y)); } 74% { transform: translateY(4px); } 100% { transform: translateY(0); } }
-@keyframes merge-path-horizontal { 0% { transform: translate(0, 0) scale(1); opacity: 1; } 52% { transform: translate(var(--merge-dx), 0) scale(.86); opacity: .9; } 100% { transform: translate(var(--merge-dx), var(--merge-dy)) scale(.05); opacity: 0; } }
-@keyframes merge-path-vertical { 0% { transform: translate(0, 0) scale(1); opacity: 1; } 52% { transform: translate(0, var(--merge-dy)) scale(.86); opacity: .9; } 100% { transform: translate(var(--merge-dx), var(--merge-dy)) scale(.05); opacity: 0; } }
+@keyframes merge-path-horizontal { 0% { transform: translate(0, 0) scale(1); opacity: 1; } 52% { transform: translateX(calc(var(--merge-dx) * (100% + var(--board-gap)))) scale(.86); opacity: .9; } 100% { transform: translate(calc(var(--merge-dx) * (100% + var(--board-gap))), calc(var(--merge-dy) * (100% + var(--board-gap)))) scale(.05); opacity: 0; } }
+@keyframes merge-path-vertical { 0% { transform: translate(0, 0) scale(1); opacity: 1; } 52% { transform: translateY(calc(var(--merge-dy) * (100% + var(--board-gap)))) scale(.86); opacity: .9; } 100% { transform: translate(calc(var(--merge-dx) * (100% + var(--board-gap))), calc(var(--merge-dy) * (100% + var(--board-gap)))) scale(.05); opacity: 0; } }
 @keyframes merge-result-pop { 0% { transform: scale(.6); opacity: 0; } 65% { transform: scale(1.18); opacity: 1; filter: brightness(1.3); } 100% { transform: scale(1); opacity: 1; filter: brightness(1); } }
-@media (max-width: 380px) { .shell { width: min(100% - 20px, 520px); padding-top: 16px; } .board { gap: 5px; padding: 7px; } .phase-layer { inset: 7px; gap: 5px; } .tile { border-radius: 8px; } }
+@media (max-width: 380px) { .shell { width: min(100% - 20px, 520px); padding-top: 16px; } .board { gap: 5px; padding: 7px; } .phase-layer { --board-gap: 5px; inset: 7px; } .tile { border-radius: 8px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
