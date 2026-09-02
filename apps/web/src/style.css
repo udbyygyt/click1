@@ -37,7 +37,7 @@ select { min-height: 44px; padding: 0 30px 0 12px; color: #f4f7ff; background: #
 .board { position: relative; display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; padding: 9px; border: 1px solid #33446f; border-radius: 17px; background: #0f172c; }
 .tile { position: relative; overflow: visible; aspect-ratio: 1; padding: 0; color: #101426; border: 0; border-radius: 10px; font-size: clamp(20px, 8vw, 34px); font-weight: 750; transition: filter 150ms ease; }
 .tile:not(:disabled):hover { transform: translateY(-2px); filter: brightness(1.1); }
-.phase-layer { --board-gap: 7px; position: absolute; inset: 9px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--board-gap); z-index: 6; pointer-events: none; }
+.phase-layer { --board-gap: 7px; position: absolute; inset: 9px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-rows: repeat(5, minmax(0, 1fr)); gap: var(--board-gap); z-index: 6; pointer-events: none; }
 .phase-piece { z-index: 1; will-change: transform, opacity; }
 .merge-step-piece { animation: merge-step 560ms cubic-bezier(.2,.75,.25,1) both; }
 .merge-result { z-index: 2; animation: merge-result-pop 360ms ease-out both; }
