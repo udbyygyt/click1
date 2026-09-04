@@ -210,7 +210,7 @@ export function applyMove(input: GameState, row: number, col: number, moveId: st
   const clickBoardBefore = cloneBoard(state.board);
   state.board[row]![col] = from + 1;
   state.energy -= 1;
-  events.push({ type: 'click', row, col, from, to: from + 1, boardBefore: clickBoardBefore, boardAfter: cloneBoard(state.board) });
+  events.push({ type: 'click', row, col, from, to: from + 1, scoreAfter: state.score, energyAfter: state.energy, boardBefore: clickBoardBefore, boardAfter: cloneBoard(state.board) });
   let chain = 0;
   const resolveChain = (initialGroup: Group, initialTrigger: [number, number]): void => {
     let trigger = initialTrigger;
@@ -225,7 +225,7 @@ export function applyMove(input: GameState, row: number, col: number, moveId: st
       state.board[mergeTrigger[0]]![mergeTrigger[1]] = nextValue;
       state.score += inputSum;
       state.energy = Math.min(MAX_ENERGY, state.energy + 1);
-      events.push({ type: 'merge', value: nextValue, inputSum, cells: groups.cells, anchor: mergeTrigger, boardBefore: mergeBoardBefore, boardAfter: cloneBoard(state.board) });
+      events.push({ type: 'merge', value: nextValue, inputSum, cells: groups.cells, anchor: mergeTrigger, scoreAfter: state.score, energyAfter: state.energy, boardBefore: mergeBoardBefore, boardAfter: cloneBoard(state.board) });
       trigger = applyDown(state, events, mergeTrigger);
       groups = findGroupAt(state.board, trigger[0], trigger[1]);
     }

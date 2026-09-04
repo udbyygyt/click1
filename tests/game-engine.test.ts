@@ -45,6 +45,7 @@ describe('applyMove', () => {
     expect(result.state.energy).toBe(INITIAL_ENERGY - 1);
     expect(result.state.canUndo).toBe(true);
     expect(result.state.lastMoveId).toBe('move-1');
+    expect(result.events[0]).toMatchObject({ type: 'click', scoreAfter: 0, energyAfter: INITIAL_ENERGY - 1 });
     expect(result.state.board.flat().filter((value) => value > 0)).toHaveLength(BOARD_SIZE * BOARD_SIZE);
   });
 
@@ -83,7 +84,7 @@ describe('applyMove', () => {
 
     expect(result.state.score).toBe(90);
     expect(result.state.board[4][1]).toBe(4);
-    expect(result.events).toContainEqual(expect.objectContaining({ type: 'merge', value: 4, inputSum: 90 }));
+    expect(result.events).toContainEqual(expect.objectContaining({ type: 'merge', value: 4, inputSum: 90, scoreAfter: 90, energyAfter: 5 }));
     const merge = result.events.find((event) => event.type === 'merge');
     expect(merge && merge.type === 'merge' ? merge.boardAfter[3][1] : null).toBe(4);
     expect(merge && merge.type === 'merge' ? merge.boardAfter[3][2] : null).toBe(0);
@@ -119,13 +120,15 @@ describe('applyMove', () => {
       [0, 3, 2, 3, 0],
       [0, 4, 4, 4, 0],
     ], 42);
+    state.energy = 3;
 
     const result = applyMove(state, 3, 2, 'move-1');
     const merges = result.events.filter((event) => event.type === 'merge');
 
     expect(merges).toHaveLength(2);
-    expect(merges[0]).toMatchObject({ anchor: [3, 2], value: 4 });
-    expect(merges[1]).toMatchObject({ anchor: [4, 1], value: 5 });
+    expect(result.events[0]).toMatchObject({ type: 'click', scoreAfter: 0, energyAfter: 2 });
+    expect(merges[0]).toMatchObject({ anchor: [3, 2], value: 4, scoreAfter: 90, energyAfter: 3 });
+    expect(merges[1]).toMatchObject({ anchor: [4, 1], value: 5, scoreAfter: 410, energyAfter: 4 });
   });
 
   it('allows only one undo until a new move is made', () => {
