@@ -11,6 +11,35 @@ import { applyMove, createInitialState, undoMove, type MoveSnapshot } from '../.
 const languageKey = 'click1-language';
 const offlineQueueKey = 'click1-offline-queue';
 
+declare global {
+  interface Window { __CLICK1_LAST_MOVE__?: unknown }
+}
+
+function logMoveTrace(mode: string, row: number, col: number, before: GameState, result: { state: GameState; events: GameEvent[] }) {
+  if (!import.meta.env.DEV) return;
+  const trace = {
+    mode,
+    click: { row, col },
+    boardBefore: before.board,
+    finalBoard: result.state.board,
+    events: result.events.map((event, index) => ({
+      index,
+      type: event.type,
+      scoreAfter: 'scoreAfter' in event ? event.scoreAfter : undefined,
+      energyAfter: 'energyAfter' in event ? event.energyAfter : undefined,
+      anchor: event.type === 'merge' ? event.anchor : undefined,
+      cells: event.type === 'merge' ? event.cells : undefined,
+      moved: event.type === 'fall' ? event.moved : undefined,
+      spawn: event.type === 'spawn' ? [event.row, event.col, event.value] : undefined,
+      boardBefore: event.boardBefore,
+      boardAfter: event.boardAfter,
+    })),
+  };
+  window.__CLICK1_LAST_MOVE__ = trace;
+  console.info('[click1:move]', trace);
+  console.info('[click1:move] copy command: copy(JSON.stringify(window.__CLICK1_LAST_MOVE__))');
+}
+
 function GameApp() {
   const [language, setLanguage] = useState<Language>(() => (localStorage.getItem(languageKey) as Language | null) ?? 'en');
   const [token, setToken] = useState('');
@@ -79,6 +108,7 @@ function GameApp() {
     if (guestMode) {
       try {
         const result = applyMove(state, row, col, crypto.randomUUID());
+        logMoveTrace('guest', row, col, state, result);
         setState(result.state);
         setGuestUndoSnapshot(result.snapshot);
         setEvents(result.events);
@@ -89,11 +119,11 @@ function GameApp() {
     }
     if (!token) return;
     if (!online) {
-      try { const id = crypto.randomUUID(); const result = applyOfflineMove(state, { row, col }, id); setState(result.state); setEvents(result.events); setOfflineQueue((queue) => [...queue, { id, row, col }]); playSound('click', soundEnabled); vibrate(vibrationEnabled); setStatus('Offline move saved. Undo requires a connection.'); } catch (error) { setStatus(error instanceof Error ? error.message : copy.error); }
+      try { const id = crypto.randomUUID(); const result = applyOfflineMove(state, { row, col }, id); logMoveTrace('offline', row, col, state, result); setState(result.state); setEvents(result.events); setOfflineQueue((queue) => [...queue, { id, row, col }]); playSound('click', soundEnabled); vibrate(vibrationEnabled); setStatus('Offline move saved. Undo requires a connection.'); } catch (error) { setStatus(error instanceof Error ? error.message : copy.error); }
       return;
     }
     setBusy(true);
-    try { const result = await gameApi.move(token, row, col); setState(result.state); setEvents(result.events); playSound(result.events.some((event) => event.type === 'merge') ? 'merge' : 'click', soundEnabled); vibrate(vibrationEnabled); setStatus(''); }
+    try { const result = await gameApi.move(token, row, col); logMoveTrace('online', row, col, state, result); setState(result.state); setEvents(result.events); playSound(result.events.some((event) => event.type === 'merge') ? 'merge' : 'click', soundEnabled); vibrate(vibrationEnabled); setStatus(''); }
     catch (error) { if (error instanceof ApiNetworkError) setOnline(false); setStatus(error instanceof Error ? error.message : copy.error); }
     finally { setBusy(false); }
   };

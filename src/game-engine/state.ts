@@ -183,8 +183,11 @@ function chooseBottomLeft(cells: Array<[number, number]>): [number, number] {
   return cells.reduce((best, cell) => cell[0] > best[0] || (cell[0] === best[0] && cell[1] < best[1]) ? cell : best);
 }
 
-function chooseAutomaticGroup(board: number[][]): { group: Group; anchor: [number, number] } | null {
-  const candidates = findGroups(board).map((group) => ({ group, anchor: chooseBottomLeft(group.cells) }));
+function chooseAutomaticGroup(board: number[][], affectedCells: Array<[number, number]>): { group: Group; anchor: [number, number] } | null {
+  const affected = new Set(affectedCells.map(([row, col]) => `${row},${col}`));
+  const candidates = findGroups(board)
+    .filter((group) => group.cells.some(([row, col]) => affected.has(`${row},${col}`)))
+    .map((group) => ({ group, anchor: chooseBottomLeft(group.cells) }));
   candidates.sort((left, right) => right.anchor[0] - left.anchor[0] || left.anchor[1] - right.anchor[1]);
   return candidates[0] ?? null;
 }
@@ -202,7 +205,7 @@ function hasImmediateMergeMove(board: number[][]): boolean {
   return false;
 }
 
-function applyDown(state: GameState, events: GameEvent[], trigger: [number, number]): [number, number] {
+function applyDown(state: GameState, events: GameEvent[], trigger: [number, number]): { trigger: [number, number]; affectedCells: Array<[number, number]> } {
   type Piece = { value: number; from: [number, number]; downTo: [number, number]; to: [number, number]; isTrigger: boolean };
   const down: Array<Array<Piece | null>> = createEmptyBoard().map((row) => row.map(() => null));
   const pieces: Piece[] = [];
@@ -224,7 +227,8 @@ function applyDown(state: GameState, events: GameEvent[], trigger: [number, numb
   const moved = pieces.filter((piece) => piece.from[0] !== piece.to[0] || piece.from[1] !== piece.to[1]);
   if (moved.length > 0) events.push({ type: 'fall', moved: moved.map(({ value, from, downTo, to }) => ({ value, from, downTo, to })), boardBefore, boardAfter: cloneBoard(state.board) });
   const triggerPiece = pieces.find((piece) => piece.isTrigger);
-  return triggerPiece?.to ?? trigger;
+  const settledTrigger = triggerPiece?.to ?? trigger;
+  return { trigger: settledTrigger, affectedCells: moved.map((piece) => piece.to).concat([settledTrigger]) };
 }
 
 export function applyMove(input: GameState, row: number, col: number, moveId: string): MoveResult {
@@ -257,11 +261,11 @@ export function applyMove(input: GameState, row: number, col: number, moveId: st
       state.score += inputSum;
       state.energy = Math.min(MAX_ENERGY, state.energy + 1);
       events.push({ type: 'merge', value: nextValue, inputSum, cells: group.cells, anchor, scoreAfter: state.score, energyAfter: state.energy, boardBefore: mergeBoardBefore, boardAfter: cloneBoard(state.board) });
-      applyDown(state, events, anchor);
-      pending = chooseAutomaticGroup(state.board);
+      const settled = applyDown(state, events, anchor);
+      pending = chooseAutomaticGroup(state.board, settled.affectedCells);
       if (!pending) {
-        fillBoard(state, events);
-        pending = chooseAutomaticGroup(state.board);
+        const spawned = fillBoard(state, events);
+        pending = chooseAutomaticGroup(state.board, spawned);
       }
     }
   } else {

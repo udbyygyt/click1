@@ -50,21 +50,39 @@ export function GameBoard({ state, language, busy, guestMode, freeUndoAvailable,
   useEffect(() => {
     if (!activeEvent || activeEvent.type === 'click') return;
     let cancelled = false;
+    let finished = false;
+    let fallback: number | undefined;
+    const phaseLabel = activeEvent.type === 'merge' ? `merge:${mergeLayerIndex}${mergeResultVisible ? ':result' : ''}` : activeEvent.type;
+    const debug = { phaseIndex, phaseLabel, eventCount: events.length, mergePieces: activeEvent.type === 'merge' ? activeMergeLayer.length : 0, falls: activeEvent.type === 'fall' ? scheduledFalls.length : 0, spawns: activeEvent.type === 'spawn' ? spawnBatch.length : 0 };
+    if (import.meta.env.DEV) console.info('[click1:animation] phase-start', debug);
     const frame = requestAnimationFrame(() => {
       const layer = phaseLayerRef.current;
       const selector = activeEvent.type === 'merge' ? mergeResultVisible ? '.merge-result' : '.merge-step-piece' : activeEvent.type === 'fall' ? '.fall-piece' : '.spawn-piece';
       const animations = layer ? Array.from(layer.querySelectorAll<HTMLElement>(selector)).flatMap((element) => element.getAnimations()) : [];
-      Promise.allSettled(animations.map((animation) => animation.finished)).then(() => {
-        if (cancelled) return;
+      const maxRemaining = animations.reduce((longest, animation) => {
+        const timing = animation.effect?.getComputedTiming();
+        return Math.max(longest, Number(timing?.delay ?? 0) + Number(timing?.duration ?? 0));
+      }, 0);
+      if (import.meta.env.DEV) console.info('[click1:animation] phase-ready', { ...debug, animationCount: animations.length, maxRemaining });
+      const finish = (source: 'animation' | 'fallback') => {
+        if (cancelled || finished) return;
+        finished = true;
+        if (import.meta.env.DEV) console.info('[click1:animation] phase-end', { ...debug, source });
         if (activeEvent.type === 'spawn') advancePhase(spawnBatch.length);
         else if (activeEvent.type !== 'merge') advancePhase();
         else if (mergeResultVisible) advancePhase();
         else if (mergeLayerIndex + 1 < mergeLayers.length) setMergeLayerIndex((current) => current + 1);
         else setMergeResultVisible(true);
+      };
+      if (animations.length === 0) { finish('animation'); return; }
+      fallback = window.setTimeout(() => finish('fallback'), maxRemaining + 100);
+      Promise.allSettled(animations.map((animation) => animation.finished)).then(() => {
+        if (fallback !== undefined) window.clearTimeout(fallback);
+        finish('animation');
       });
     });
-    return () => { cancelled = true; cancelAnimationFrame(frame); };
-  }, [activeEvent, mergeLayerIndex, mergeLayers, mergeResultVisible, phaseIndex, spawnBatch.length]);
+    return () => { cancelled = true; cancelAnimationFrame(frame); if (fallback !== undefined) window.clearTimeout(fallback); };
+  }, [activeEvent, activeMergeLayer.length, events.length, mergeLayerIndex, mergeLayers.length, mergeResultVisible, phaseIndex, scheduledFalls.length, spawnBatch.length]);
   const mergeAnchor = activeEvent?.type === 'merge' ? activeEvent.anchor : null;
 
   return <section className="game" aria-busy={busy || animating}>

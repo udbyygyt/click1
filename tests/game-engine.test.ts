@@ -206,6 +206,21 @@ describe('applyMove', () => {
     expect(result.state.board[0].slice(0, 3)).toEqual([1, 1, 1]);
   });
 
+  it('does not auto-merge a pre-existing group untouched by the move', () => {
+    const state = createStateFromBoard([
+      [1, 1, 1, 4, 5],
+      [2, 4, 5, 2, 3],
+      [3, 5, 4, 3, 2],
+      [4, 2, 3, 5, 4],
+      [5, 3, 2, 4, 5],
+    ], 42);
+
+    const result = applyMove(state, 0, 3, 'move-1');
+
+    expect(result.events.some((event) => event.type === 'merge')).toBe(false);
+    expect(result.state.board[0].slice(0, 3)).toEqual([1, 1, 1]);
+  });
+
   it('preserves historical high score without ending the game', () => {
     const state = createStateFromBoard([
       [2, 1, 2, 0, 0],
