@@ -1,5 +1,7 @@
 # dApp Store APK 构建
 
+> 2026-10-12 更新：本页是原 Bubblewrap/TWA 方案。当前官方网页应用指南推荐 `solana-mobile webshell`；首次上架步骤、签名命令和现状见 [DAPP_STORE_PUBLISHING.md](DAPP_STORE_PUBLISHING.md)。保留旧工程用于对照，不把现有 Debug 指纹当作正式发布证书。
+
 Click+1 当前是 PWA/TWA 路线。线上 Web Manifest 已发布在：
 
 ```text

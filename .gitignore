@@ -6,6 +6,9 @@ android/twa/build/
 android/twa/*.apk
 android/twa/*.aab
 android/twa/local.properties
+android/webshell/app/build/
+android/webshell/build/
+android/webshell/local.properties
 .env
 .env.*
 !.env.example
