@@ -16,3 +16,24 @@ android/webshell/local.properties
 coverage/
 keystores/
 credentials.json
+
+# Local editor/browser state and generated debugging or publishing artifacts.
+.idea/
+.vscode/
+.playwright-cli/
+output/
+
+# Signing material, private credentials and machine-specific Android settings.
+secrets/
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.pem
+*.key
+id_rsa
+id_ed25519
+**/local.properties
+*.apk
+*.aab
+*.env
