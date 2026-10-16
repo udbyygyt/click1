@@ -12,7 +12,7 @@ const languageKey = 'click1-language';
 const offlineQueueKey = 'click1-offline-queue';
 
 declare global {
-  interface Window { __CLICK1_LAST_MOVE__?: unknown }
+  interface Window { __CLICK1_LAST_MOVE__?: unknown; __CLICK1_PHASE_TRACE__?: Array<Record<string, unknown>> }
 }
 
 function logMoveTrace(mode: string, row: number, col: number, before: GameState, result: { state: GameState; events: GameEvent[] }) {
@@ -36,6 +36,7 @@ function logMoveTrace(mode: string, row: number, col: number, before: GameState,
     })),
   };
   window.__CLICK1_LAST_MOVE__ = trace;
+  window.__CLICK1_PHASE_TRACE__ = [];
   console.info('[click1:move]', trace);
   console.info('[click1:move] copy command: copy(JSON.stringify(window.__CLICK1_LAST_MOVE__))');
 }

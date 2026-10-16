@@ -12,13 +12,21 @@ function copyBoard(board: BoardSnapshot): BoardSnapshot { return board.map((row)
 export function GameBoard({ state, language, busy, guestMode, freeUndoAvailable, events, onMove, onUndo, onNewGame }: GameBoardProps) {
   const copy = text(language);
   const firstAnimatedIndex = events[0]?.type === 'click' ? 1 : 0;
+  const [playbackEvents, setPlaybackEvents] = useState(events);
   const [phaseIndex, setPhaseIndex] = useState(firstAnimatedIndex);
   const [mergeLayerIndex, setMergeLayerIndex] = useState(0);
   const [mergeResultVisible, setMergeResultVisible] = useState(false);
   const phaseAdvanceRef = useRef(-1);
   const phaseLayerRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => { phaseAdvanceRef.current = -1; setPhaseIndex(events[0]?.type === 'click' ? 1 : 0); setMergeLayerIndex(0); setMergeResultVisible(false); }, [events]);
+  // Reset before committing new events so no frame or effect uses the previous move's cursor.
+  if (playbackEvents !== events) {
+    setPlaybackEvents(events);
+    setPhaseIndex(firstAnimatedIndex);
+    setMergeLayerIndex(0);
+    setMergeResultVisible(false);
+  }
+  useEffect(() => { phaseAdvanceRef.current = -1; }, [events]);
 
   const activeEvent = events[phaseIndex];
   const animating = activeEvent !== undefined && activeEvent.type !== 'click';
@@ -54,7 +62,14 @@ export function GameBoard({ state, language, busy, guestMode, freeUndoAvailable,
     let fallback: number | undefined;
     const phaseLabel = activeEvent.type === 'merge' ? `merge:${mergeLayerIndex}${mergeResultVisible ? ':result' : ''}` : activeEvent.type;
     const debug = { phaseIndex, phaseLabel, eventCount: events.length, mergePieces: activeEvent.type === 'merge' ? activeMergeLayer.length : 0, falls: activeEvent.type === 'fall' ? scheduledFalls.length : 0, spawns: activeEvent.type === 'spawn' ? spawnBatch.length : 0 };
-    if (import.meta.env.DEV) console.info('[click1:animation] phase-start', debug);
+    const startedAt = performance.now();
+    const recordPhase = (stage: string, details: Record<string, unknown> = {}) => {
+      if (!import.meta.env.DEV) return;
+      const entry = { timeMs: performance.now(), stage, ...debug, ...details };
+      (window.__CLICK1_PHASE_TRACE__ ??= []).push(entry);
+      console.info(`[click1:animation] ${stage}`, entry);
+    };
+    recordPhase('phase-start');
     const frame = requestAnimationFrame(() => {
       const layer = phaseLayerRef.current;
       const selector = activeEvent.type === 'merge' ? mergeResultVisible ? '.merge-result' : '.merge-step-piece' : activeEvent.type === 'fall' ? '.fall-piece' : '.spawn-piece';
@@ -63,11 +78,11 @@ export function GameBoard({ state, language, busy, guestMode, freeUndoAvailable,
         const timing = animation.effect?.getComputedTiming();
         return Math.max(longest, Number(timing?.delay ?? 0) + Number(timing?.duration ?? 0));
       }, 0);
-      if (import.meta.env.DEV) console.info('[click1:animation] phase-ready', { ...debug, animationCount: animations.length, maxRemaining });
+      recordPhase('phase-ready', { animationCount: animations.length, maxRemaining });
       const finish = (source: 'animation' | 'fallback') => {
         if (cancelled || finished) return;
         finished = true;
-        if (import.meta.env.DEV) console.info('[click1:animation] phase-end', { ...debug, source });
+        recordPhase('phase-end', { source, elapsedMs: performance.now() - startedAt });
         if (activeEvent.type === 'spawn') advancePhase(spawnBatch.length);
         else if (activeEvent.type !== 'merge') advancePhase();
         else if (mergeResultVisible) advancePhase();
@@ -76,12 +91,17 @@ export function GameBoard({ state, language, busy, guestMode, freeUndoAvailable,
       };
       if (animations.length === 0) { finish('animation'); return; }
       fallback = window.setTimeout(() => finish('fallback'), maxRemaining + 100);
-      Promise.allSettled(animations.map((animation) => animation.finished)).then(() => {
+      Promise.allSettled(animations.map((animation) => animation.finished)).then((results) => {
+        if (cancelled) return;
+        if (results.some((result) => result.status === 'rejected')) {
+          recordPhase('animation-cancelled');
+          return;
+        }
         if (fallback !== undefined) window.clearTimeout(fallback);
         finish('animation');
       });
     });
-    return () => { cancelled = true; cancelAnimationFrame(frame); if (fallback !== undefined) window.clearTimeout(fallback); };
+    return () => { cancelled = true; recordPhase('phase-cleanup', { completed: finished }); cancelAnimationFrame(frame); if (fallback !== undefined) window.clearTimeout(fallback); };
   }, [activeEvent, activeMergeLayer.length, events.length, mergeLayerIndex, mergeLayers.length, mergeResultVisible, phaseIndex, scheduledFalls.length, spawnBatch.length]);
   const mergeAnchor = activeEvent?.type === 'merge' ? activeEvent.anchor : null;
 
